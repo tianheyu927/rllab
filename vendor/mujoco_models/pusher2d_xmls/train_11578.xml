@@ -1,0 +1,54 @@
+<mujoco model="arm3d">
+	<compiler inertiafromgeom="true" angle="radian" coordinate="local"/>
+	<option timestep="0.01" integrator="Euler" gravity="0 0 0" iterations="20"/>
+	<default >
+		<joint limited="true" armature="0.04" damping="1"/>
+		<geom density="300" friction="0.8 0.1 0.1" conaffinity="1" contype="1" condim="1" margin="0.002"/>
+	</default>
+	<worldbody >
+		<light dir="0 0 -1" pos="0 0 3" diffuse=".5 .5 .5"/>
+		<geom conaffinity="1" name="table" contype="1" type="plane" size="2 2 0.1" pos="0 0.5 -0.15"/>
+		<body name="palm" pos="0 0 0">
+			<geom type="capsule" rgba="0. 1. 0. 1" fromto="0 0 -0.1 0 0 0.1" size="0.12"/>
+			<body name="proximal_1" axisangle="0 0 1 0.785" pos="0 0 -0.075">
+				<joint range="-2.5 2.5" pos="0 0 0" name="proximal_j_1" type="hinge" axis="0 0 1" damping="1.0"/>
+				<geom rgba="0. 1. 0. 1" conaffinity="1" contype="1" type="capsule" fromto="0 0 0 0.4 0 0" size="0.06"/>
+				<body name="distal_1" axisangle="0 0 1 -0.785" pos="0.4 0 0">
+					<joint range="-2.3213 2.3" pos="0 0 0" name="distal_j_1" type="hinge" axis="0 0 1" damping="1.0"/>
+					<geom rgba="0. 1. 0. 1" conaffinity="1" contype="1" type="capsule" fromto="0 0 0 0.4 0 0" size="0.06"/>
+					<body name="distal_2" axisangle="0 0 1 -1.57" pos="0.4 0 0">
+						<joint range="-2.3213 2.3" pos="0 0 0" name="distal_j_2" type="hinge" axis="0 0 1" damping="1.0"/>
+						<geom rgba="0. 1. 0. 1" conaffinity="1" contype="1" type="capsule" fromto="0 0 0 0.4 0 0" size="0.06"/>
+						<body name="distal_4" pos="0.4 0 0">
+							<site name="tip arml" size="0.01" pos="0.1 -0.2 0"/>
+							<site name="tip armr" size="0.01" pos="0.1 0.2 0"/>
+							<geom rgba="0. 1. 0. 1" conaffinity="1" contype="1" type="capsule" fromto="0 -0.2 0 0 0.2 0" size="0.04"/>
+							<geom rgba="0. 1. 0. 1" conaffinity="1" contype="1" type="capsule" fromto="0 -0.2 0 0.2 -0.2 0" size="0.04"/>
+							<geom rgba="0. 1. 0. 1" conaffinity="1" contype="1" type="capsule" fromto="0 0.2 0 0.2 0.2 0" size="0.04"/>
+						</body>
+					</body>
+				</body>
+			</body>
+		</body>
+		<body name="distractor" pos="-0.5761221638653204 0.4283630440467666 -0.1">
+			<geom density="0.00001" rgba="0.9843240860797691 0.6343823535316023 0.8275010725743218 1.0" conaffinity="1" contype="1" type="cylinder" size="0.1 0.1 0.1"/>
+			<joint range="-10.3213 10.3" pos="0.025 0.025 0.025" name="distractor_slidey" type="slide" axis="0 1 0" damping="0.5"/>
+			<joint range="-10.3213 10.3" pos="0.025 0.025 0.025" name="distractor_slidex" type="slide" axis="1 0 0" damping="0.5"/>
+		</body>
+		<body name="object" pos="-0.6914574776538291 0.5685472742828671 -0.1">
+			<geom density="0.00001" rgba="0.6139343217036191 0.9069079306933207 0.5910123002917342 1.0" conaffinity="1" contype="1" type="cylinder" size="0.1 0.1 0.1"/>
+			<joint range="-10.3213 10.3" pos="0.025 0.025 0.025" name="obj_slidey" type="slide" axis="0 1 0" damping="0.5"/>
+			<joint range="-10.3213 10.3" pos="0.025 0.025 0.025" name="obj_slidex" type="slide" axis="1 0 0" damping="0.5"/>
+		</body>
+		<body name="goal" pos="-1.0 1.0 -0.145">
+			<geom density="0.00001" rgba="1 0 0 1" conaffinity="0" contype="0" type="cylinder" size="0.17 0.005 0.2"/>
+			<joint range="-10.3213 10.3" pos="0 0 0" name="goal_slidey" type="slide" axis="0 1 0" damping="0.5"/>
+			<joint range="-10.3213 10.3" pos="0 0 0" name="goal_slidex" type="slide" axis="1 0 0" damping="0.5"/>
+		</body>
+	</worldbody>
+	<actuator >
+		<motor ctrllimited="true" joint="proximal_j_1" ctrlrange="-3.0 3.0"/>
+		<motor ctrllimited="true" joint="distal_j_1" ctrlrange="-3.0 3.0"/>
+		<motor ctrllimited="true" joint="distal_j_2" ctrlrange="-3.0 3.0"/>
+	</actuator>
+</mujoco>

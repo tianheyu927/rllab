@@ -2,6 +2,8 @@ import numpy as np
 import os.path as osp
 from cached_property import cached_property
 
+import rllab
+
 from rllab import spaces
 from rllab.envs.base import Env
 from rllab.misc.overrides import overrides
@@ -39,7 +41,7 @@ class MujocoEnv(Env):
     @autoargs.arg('action_noise', type=float,
                   help='Noise added to the controls, which will be '
                        'proportional to the action bounds')
-    def __init__(self, action_noise=0.0, file_path=None, template_args=None):
+    def __init__(self, action_noise=0.0, file_path=None, template_args=None, **kwargs):
         # compile template
         if file_path is None:
             if self.__class__.FILE is None:
@@ -59,7 +61,16 @@ class MujocoEnv(Env):
             self.model = MjModel(file_path)
             os.close(tmp_f)
         else:
-            self.model = MjModel(file_path)
+            try:
+                self.model = MjModel(file_path)
+            except rllab.mujoco_py.mjcore.MjError as err:
+                rllab_path = rllab.__file__
+                if 'local' not in file_path:
+                    prefix = rllab_path[:rllab_path.index('rllab')] + 'rllab/vendor/local_mujoco_models/'
+                suffix = file_path[file_path.index('mujoco_models')+14:]
+                #suffix = 'train_ensure_woodtable_distractor_pusher1.xml'
+                #suffix = 'pusher98.xml'
+                self.model = MjModel(prefix+suffix)
         self.data = self.model.data
         self.viewer = None
         self.init_qpos = self.model.data.qpos
