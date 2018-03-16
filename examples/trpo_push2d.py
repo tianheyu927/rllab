@@ -30,7 +30,7 @@ def run_task(*_):
         policy=policy,
         baseline=baseline,
         batch_size=100*500,
-        max_path_length=100,
+        max_path_length=110,
         n_itr=2000,
         discount=0.99,
         step_size=0.01,

@@ -118,7 +118,7 @@ def pusher(object_pos=(0., 0., -0.1), goal_pos=(0., 0., -0.145), distractor_pos=
     # Make table
     worldbody = mjcmodel.root.worldbody()
     worldbody.light(diffuse=".5 .5 .5", pos="0 0 3", dir="0 0 -1")
-    worldbody.geom(name="table", type="plane", pos="0 0.5 -0.15", size="2 2 0.1", contype="1", conaffinity="1")
+    worldbody.geom(name="table", type="plane", pos="0 0.5 -0.15", size="3 3 0.1", contype="1", conaffinity="1")
     # Make arm
     palm = worldbody.body(name="palm", pos="0 0 0")
     palm.geom(rgba="0. 1. 0. 1", type="capsule", fromto="0 0 -0.1 0 0 0.1", size="0.12")
@@ -214,26 +214,26 @@ if __name__ == '__main__':
             copyfile(xml_file, GYM_PATH + '/gym/envs/mujoco/assets/pusher.xml')
     else:
         # TODO - could call code to autogenerate xml file here
-        goal_pos = (-1.0, 1.0, -0.145)
+        goal_pos = (0., -1.2, -0.145)
         for i in range(500):
             color = np.random.uniform(low=0, high=1, size=3)
             while np.linalg.norm(color - np.array([1.,0.,0.])) < 0.5:
                 color = np.random.uniform(low=0, high=1, size=3)
             distractor_color = np.random.uniform(low=0, high=1, size=3)
             while np.linalg.norm(distractor_color - np.array([1.,0.,0.])) < 0.5 and \
-                    np.linalg.norm(distractor_color - color) < 0.5:
+                    np.linalg.norm(distractor_color - color) < 1.0:
                 distractor_color = np.random.uniform(low=0, high=1, size=3)
             color = np.concatenate((color, [1.0]))
             distractor_color = np.concatenate((distractor_color, [1.0]))
             for j in range(24):
                 while True:
-                    object_ = [np.random.uniform(low=-1.0, high=-0.4),
-                                 np.random.uniform(low=0.3, high=1.2)]
-                    distractor_ = [np.random.uniform(low=-1.0, high=-0.4),
-                             np.random.uniform(low=0.3, high=1.2)]
-                    if np.linalg.norm(np.array(object_)-np.array(goal_pos)[:-1]) > 0.45 and \
-                        np.linalg.norm(np.array(object_)-np.array(distractor_)) > 0.17 and \
-                        np.linalg.norm(np.array(distractor_)-np.array(goal_pos)[:-1]) > 0.45:
+                    object_ = [np.random.uniform(low=-0.4, high=0.4),
+                                np.random.uniform(low=-0.8, high=-0.4)]
+                    distractor_ = [np.random.uniform(low=-0.4, high=0.4),
+                                np.random.uniform(low=-0.8, high=-0.4)]
+                    if np.linalg.norm(np.array(object_)-np.array(goal_pos)[:-1]) > 0.3 and \
+                        np.linalg.norm(np.array(object_)-np.array(distractor_)) > 0.5 and \
+                        np.linalg.norm(np.array(distractor_)-np.array(goal_pos)[:-1]) > 0.3:
                         break
                 object_ = np.concatenate((object_, [-0.1]))
                 distractor_ = np.concatenate((distractor_, [-0.1]))

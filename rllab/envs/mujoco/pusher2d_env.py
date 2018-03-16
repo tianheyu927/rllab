@@ -59,7 +59,7 @@ class PusherEnv2D(MujocoEnv, Serializable):
         if self.include_distractors:
             distractor_color = np.random.uniform(low=0, high=1, size=3)
             while np.linalg.norm(distractor_color - np.array([1.,0.,0.])) < 0.5 and \
-                    np.linalg.norm(distractor_color - color) < 0.5:
+                    np.linalg.norm(distractor_color - color) < 1.0:
                 distractor_color = np.random.uniform(low=0, high=1, size=3)
             return np.concatenate((color, [1.0], distractor_color, [1.0]))
         else:
@@ -82,7 +82,8 @@ class PusherEnv2D(MujocoEnv, Serializable):
         pgoal = self.get_body_com("goal")
         ptip = self.get_body_com("distal_4")
         reward_ctrl = - np.square(action).sum()
-        if self.iteration >= 50 and np.mean(self.dist[-5:]) <= 0.03:
+        if self.iteration >= 100:# and np.mean(self.dist[-3:]) <= 0.05:
+            # print('going back!')
             reward_dist = - np.linalg.norm(self.init_pos-ptip)
             reward = reward_dist + 0.1 * reward_ctrl
         else:
@@ -100,20 +101,21 @@ class PusherEnv2D(MujocoEnv, Serializable):
     @overrides
     def reset(self, init_state=None):
         self.itr = 0
-        qpos = np.random.uniform(low=-0.1, high=0.1, size=self.model.nq) + np.squeeze(self.init_qpos)
+        # qpos = np.random.uniform(low=-0.1, high=0.1, size=self.model.nq) + np.squeeze(self.init_qpos)
+        qpos = np.squeeze(self.init_qpos.copy())
         while True:
-            object_ = [np.random.uniform(low=-1.0, high=-0.4),
-                         np.random.uniform(low=0.3, high=1.2)]
-            goal = [-1.0, 1.0]
+            object_ = [np.random.uniform(low=-0.4, high=0.4),
+                        np.random.uniform(low=-0.8, high=-0.4)]
+            goal = [0., -1.2]
             # goal = [np.random.uniform(low=-1.2, high=-0.8),
             #              np.random.uniform(low=0.8, high=1.2)]
             if self.include_distractors:
-                distractor_ = [np.random.uniform(low=-1.0, high=-0.4),
-                         np.random.uniform(low=0.3, high=1.2)]
-            if np.linalg.norm(np.array(object_)-np.array(goal)) > 0.45:
+                distractor_ = [np.random.uniform(low=-0.4, high=0.4),
+                                np.random.uniform(low=-0.8, high=-0.4)]
+            if np.linalg.norm(np.array(object_)-np.array(goal)) > 0.3:
                 if self.include_distractors: 
-                    if np.linalg.norm(np.array(object_)-np.array(distractor_)) > 0.17 and \
-                        np.linalg.norm(np.array(distractor_)-np.array(goal)) > 0.45:
+                    if np.linalg.norm(np.array(object_)-np.array(distractor_)) > 0.5 and \
+                        np.linalg.norm(np.array(distractor_)-np.array(goal)) > 0.3:
                         break
                 else:
                     break
@@ -158,6 +160,8 @@ class PusherEnv2D(MujocoEnv, Serializable):
         # qpos[-2:] = self.goal
         qvel = np.squeeze(self.init_qvel.copy())
         qvel[-4:] = 0
+        if self.include_distractors:
+            qvel[-6:-4] = 0
         setattr(self.model.data, 'qpos', qpos)
         setattr(self.model.data, 'qvel', qvel)
         self.model.data.qvel = qvel

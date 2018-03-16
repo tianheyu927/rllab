@@ -45,9 +45,9 @@ def rollout(env, agent, max_path_length=np.inf, animated=False, speedup=1,
         viewer.autoscale()
         viewer.cam.trackbodyid=0
         viewer.cam.distance = 4.0
-        rotation_angle = -15
+        rotation_angle = 0
         cam_dist = 4
-        cam_pos = np.array([0, 0, 0, cam_dist, -45, rotation_angle])
+        cam_pos = np.array([0, 0, 0, cam_dist, -90, rotation_angle])
         for i in range(3):
             viewer.cam.lookat[i] = cam_pos[i]
         viewer.cam.distance = cam_pos[3]
