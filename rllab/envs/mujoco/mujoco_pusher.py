@@ -214,7 +214,7 @@ if __name__ == '__main__':
             copyfile(xml_file, GYM_PATH + '/gym/envs/mujoco/assets/pusher.xml')
     else:
         # TODO - could call code to autogenerate xml file here
-        goal_pos = (-0.5, -0.8, -0.145)
+        goal_pos = (-0.3, -0.8, -0.145)
         for i in range(500):
             color = np.random.uniform(low=0, high=1, size=3)
             while np.linalg.norm(color - np.array([1.,0.,0.])) < 0.5:
@@ -227,12 +227,12 @@ if __name__ == '__main__':
             distractor_color = np.concatenate((distractor_color, [1.0]))
             for j in range(24):
                 while True:
-                    object_ = [np.random.uniform(low=0., high=0.4),
-                                np.random.uniform(low=-1.2, high=-0.4)]
-                    distractor_ = [np.random.uniform(low=0., high=0.4),
-                                np.random.uniform(low=-1.2, high=-0.4)]
+                    object_ = [np.random.uniform(low=0.0, high=0.4),
+                                np.random.uniform(low=-1.2, high=-0.6)]
+                    distractor_ = [np.random.uniform(low=0.0, high=0.4),
+                                np.random.uniform(low=-1.2, high=-0.6)]
                     if np.linalg.norm(np.array(object_)-np.array(goal_pos)[:-1]) > 0.3 and \
-                        np.linalg.norm(np.array(object_)-np.array(distractor_)) > 0.5 and \
+                        np.linalg.norm(np.array(object_)-np.array(distractor_)) > 0.45 and \
                         np.linalg.norm(np.array(distractor_)-np.array(goal_pos)[:-1]) > 0.3:
                         break
                 object_ = np.concatenate((object_, [-0.1]))

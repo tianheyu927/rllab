@@ -19,7 +19,7 @@ def run_task(*_):
         name="policy",
         env_spec=env.spec,
         # The neural network policy should have two hidden layers, each with 32 hidden units.
-        hidden_sizes=(128, 128)
+        hidden_sizes=(32, 32)
         # hidden_sizes=(32, 32)
     )
 
@@ -31,9 +31,9 @@ def run_task(*_):
         baseline=baseline,
         batch_size=100*500,
         max_path_length=110,
-        n_itr=2000,
+        n_itr=1000,
         discount=0.99,
-        step_size=0.01,
+        step_size=0.01,#0.01,
         force_batch_sampler=True,
         # optimizer=ConjugateGradientOptimizer(hvp_approach=FiniteDifferenceHvp(base_eps=1e-5))
     )

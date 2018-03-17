@@ -36,7 +36,7 @@ class PusherEnvVision2D(MujocoEnv, Serializable):
         viewer.cam.distance = 4.0
         rotation_angle = 0
         cam_dist = 4
-        cam_pos = np.array([0, 0, 0, cam_dist, -45, rotation_angle])
+        cam_pos = np.array([0, 0, 0, cam_dist, -90, rotation_angle])
         for i in range(3):
             viewer.cam.lookat[i] = cam_pos[i]
         viewer.cam.distance = cam_pos[3]
@@ -97,7 +97,8 @@ class PusherEnvVision2D(MujocoEnv, Serializable):
         pgoal = self.get_body_com("goal")
         ptip = self.get_body_com("distal_4")
         reward_ctrl = - np.square(action).sum()
-        if self.iteration >= 50 and np.mean(self.dist[-5:]) <= 0.03:
+        if self.iteration >= 100:# and np.mean(self.dist[-3:]) <= 0.05:
+            # print('going back!')
             reward_dist = - np.linalg.norm(self.init_pos-ptip)
             reward = reward_dist + 0.1 * reward_ctrl
         else:

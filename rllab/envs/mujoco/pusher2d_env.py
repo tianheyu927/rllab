@@ -104,17 +104,18 @@ class PusherEnv2D(MujocoEnv, Serializable):
         # qpos = np.random.uniform(low=-0.1, high=0.1, size=self.model.nq) + np.squeeze(self.init_qpos)
         qpos = np.squeeze(self.init_qpos.copy())
         while True:
-            object_ = [np.random.uniform(low=0., high=0.4),
-                        np.random.uniform(low=-1.2, high=-0.4)]
-            goal = [-0.5, -0.8]
+            # TODO: seems like x, y are flipped in mujoco-py?
+            object_ = [np.random.uniform(low=-1.2, high=-0.6),
+                        np.random.uniform(low=0., high=0.4)]
+            goal = [-0.8, -0.4]
             # goal = [np.random.uniform(low=-1.2, high=-0.8),
             #              np.random.uniform(low=0.8, high=1.2)]
             if self.include_distractors:
-                distractor_ = [np.random.uniform(low=0., high=0.4),
-                                np.random.uniform(low=-1.2, high=-0.4)]
+                distractor_ = [np.random.uniform(low=-1.2, high=-0.6),
+                                np.random.uniform(low=0., high=0.4)]
             if np.linalg.norm(np.array(object_)-np.array(goal)) > 0.3:
                 if self.include_distractors: 
-                    if np.linalg.norm(np.array(object_)-np.array(distractor_)) > 0.5 and \
+                    if np.linalg.norm(np.array(object_)-np.array(distractor_)) > 0.45 and \
                         np.linalg.norm(np.array(distractor_)-np.array(goal)) > 0.3:
                         break
                 else:

@@ -29,7 +29,7 @@ def eval_success(path):
 
 #files = glob.glob('data/s3/rllab-fixed-push-experts/*/*itr_300*')
 #files = glob.glob('data/s3/init5-push-experts/*/*itr_300*')
-files = '/home/kevin/rllab/data/local/trpo-push2d/trpo_push2d_2018_03_16_00_58_10_0001/itr_950.pkl'
+files = '/home/kevin/rllab/data/local/trpo-push2d/trpo_push2d_2018_03_16_16_54_10_0001/itr_900.pkl'
 xmls = natsorted(glob.glob('/home/kevin/rllab/vendor/mujoco_models/pusher2d_xmls/*'))
 demos_per_expert = 12 #8
 #output_dir = 'data/expert_demos/'
