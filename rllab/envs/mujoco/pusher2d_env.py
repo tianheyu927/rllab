@@ -30,12 +30,38 @@ class PusherEnv2D(MujocoEnv, Serializable):
         Serializable.__init__(self, *args, **kwargs)
 
     def get_current_obs(self):
+        # if self.iteration >= 100 and self.iteration < 150:
+        #     return np.concatenate([
+        #         self.model.data.qpos.flat[:-6],
+        #         self.model.data.qvel.flat[:-6],
+        #         self.get_body_com("distal_4"),
+        #         self.get_body_com("distractor"),
+        #         self.init_pos,
+        #         self.init_pos,
+        #     ])
+        # elif self.iteration >= 150:
+        #     return np.concatenate([
+        #         self.model.data.qpos.flat[:-6],
+        #         self.model.data.qvel.flat[:-6],
+        #         self.get_body_com("distal_4"),
+        #         self.get_body_com("object"),
+        #         self.get_body_com("distractor"),
+        #         self.get_body_com("goal"),
+        #     ])
+        # return np.concatenate([
+        #     self.model.data.qpos.flat[:-6],
+        #     self.model.data.qvel.flat[:-6],
+        #     self.get_body_com("distal_4"),
+        #     self.get_body_com("distractor"),
+        #     self.get_body_com("object"),
+        #     self.get_body_com("goal"),
+        # ])
         return np.concatenate([
             self.model.data.qpos.flat[:-6],
             self.model.data.qvel.flat[:-6],
             self.get_body_com("distal_4"),
-            self.get_body_com("distractor"),
             self.get_body_com("object"),
+            self.get_body_com("distractor"),
             self.get_body_com("goal"),
         ])
     
@@ -74,23 +100,38 @@ class PusherEnv2D(MujocoEnv, Serializable):
         return self.model.data.com_subtree[idx]
 
     def step(self, action):
-        if not hasattr(self, "iter"):
+        if not hasattr(self, "iteration"):
             self.iteration = 0
+            import pdb; pdb.set_trace()
             self.init_pos = self.get_body_com("distal_4")
         self.frame_skip = 5
         pobj = self.get_body_com("object")
+        pdistr = self.get_body_com("distractor")
         pgoal = self.get_body_com("goal")
         ptip = self.get_body_com("distal_4")
         reward_ctrl = - np.square(action).sum()
-        if self.iteration >= 100:# and np.mean(self.dist[-3:]) <= 0.05:
-            # print('going back!')
-            reward_dist = - np.linalg.norm(self.init_pos-ptip)
-            reward = reward_dist + 0.1 * reward_ctrl
-        else:
-            reward_dist = - np.linalg.norm(pgoal-pobj)
-            reward_near = - np.linalg.norm(pobj - ptip)
-            self.dist.append(-reward_dist)
-            reward = reward_dist + 0.1 * reward_ctrl + 0.5 * reward_near
+        # if self.iteration >= 100 and self.iteration < 150:# and np.mean(self.dist[-10:]) <= 0.017:
+        #     # print('going back!')
+        #     reward_dist = - np.linalg.norm(self.init_pos-ptip)
+        #     # reward_distr = np.linalg.norm(pdistr-ptip)
+        #     reward = reward_dist + 0.01 * reward_ctrl# + 0.1 * reward_distr
+        # elif self.iteration >= 150:
+        #     reward_dist = - np.linalg.norm(pgoal-pobj)
+        #     reward_dist_distr = - np.linalg.norm(pgoal-pdistr)
+        #     reward_near = - np.linalg.norm(pdistr-ptip)
+        #     # reward_return = - np.linalg.norm(self.init_pos-ptip)
+        #     reward = reward_dist + reward_dist_distr + 0.1 * reward_ctrl + 0.5 * reward_near
+        # else:
+        #     reward_dist = - np.linalg.norm(pgoal-pobj)
+        #     reward_near = - np.linalg.norm(pobj - ptip)
+        #     # reward_return = - np.linalg.norm(self.init_pos-ptip)
+        #     self.dist.append(-reward_dist)
+        #     reward = reward_dist + 0.1 * reward_ctrl + 0.5 * reward_near
+        reward_dist = - np.linalg.norm(pgoal-pobj)
+        reward_dist_distr = - np.linalg.norm(pgoal-pdistr)
+        reward_near = - np.linalg.norm(pdistr-ptip)
+        # reward_return = - np.linalg.norm(self.init_pos-ptip)
+        reward = reward_dist + reward_dist_distr + 0.1 * reward_ctrl + 0.5 * reward_near
         self.forward_dynamics(action) # TODO - frame skip
         next_obs = self.get_current_obs()
 
@@ -100,27 +141,32 @@ class PusherEnv2D(MujocoEnv, Serializable):
 
     @overrides
     def reset(self, init_state=None):
-        self.itr = 0
+        self.iteration = 0
+        self.init_pos = self.get_body_com("distal_4")
         # qpos = np.random.uniform(low=-0.1, high=0.1, size=self.model.nq) + np.squeeze(self.init_qpos)
         qpos = np.squeeze(self.init_qpos.copy())
         while True:
             # TODO: seems like x, y are flipped in mujoco-py?
-            object_ = [np.random.uniform(low=-1.2, high=-0.6),
-                        np.random.uniform(low=0., high=0.4)]
-            goal = [-0.8, -0.4]
+            object_ = [np.random.uniform(low=-0.8, high=-0.3),
+                        np.random.uniform(low=-0.1, high=0.3)]
+            goal = [-0.55, -0.4]
             # goal = [np.random.uniform(low=-1.2, high=-0.8),
             #              np.random.uniform(low=0.8, high=1.2)]
             if self.include_distractors:
-                distractor_ = [np.random.uniform(low=-1.2, high=-0.6),
-                                np.random.uniform(low=0., high=0.4)]
+                # distractor_ = [np.random.uniform(low=-0.8, high=-0.3),
+                #                 np.random.uniform(low=-0.1, high=0.3)]
+                distractor_ = [np.random.uniform(low=-1.0, high=-0.2),
+                                np.random.uniform(low=-0.1, high=0.4)]
             if np.linalg.norm(np.array(object_)-np.array(goal)) > 0.3:
                 if self.include_distractors: 
-                    if np.linalg.norm(np.array(object_)-np.array(distractor_)) > 0.45 and \
+                    if np.linalg.norm(np.array(object_)[0]-np.array(distractor_)[0]) > 0.45 and \
                         np.linalg.norm(np.array(distractor_)-np.array(goal)) > 0.3:
                         break
                 else:
                     break
         self.object = np.array(object_)
+        # for the second policy!!!
+        self.object = np.array(goal)
         self.goal = np.array(goal)
         if self.include_distractors:
             self.distractor = np.array(distractor_)

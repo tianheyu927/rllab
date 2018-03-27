@@ -10,7 +10,7 @@ import os
 import tensorflow as tf
 
 from rllab.misc.console import query_yes_no
-from rllab.sampler.utils import rollout
+from rllab.sampler.utils import rollout_two_policy
 import pickle
 
 from rllab.envs.mujoco.pusher2d_vision_env import PusherEnvVision2D
@@ -19,20 +19,22 @@ from sandbox.rocky.tf.envs.base import TfEnv
 
 def eval_success(path):
       obs = path['observations']
-      init = obs[0, -12:-10]
-      final = obs[-10:, -12:-10]
-      back_flag = np.sum(np.sum((init-final)**2, axis=1) < 0.017) >= 1
-      target = obs[:, -3:-1]
-      obj = obs[:, -6:-4]
-      dists = np.sum((target-obj)**2, 1)  # distances at each timestep
-      return np.sum(dists < 0.017) >= 10 and back_flag
+    #   init = obs[0, -12:-10]
+    #   final = obs[-10:, -12:-10]
+      target = obs[:-20, -3:-1]
+      obj = obs[:-20, -6:-4]
+      distractor = obs[:-20, -9:-7]
+      dists1 = np.sum((target-obj)**2, 1)  # distances at each timestep
+      dists2 = np.sum((target-distractor)**2, 1)  # distances at each timestep
+      return np.sum(dists1 < 0.025) >= 5 and np.sum(dists2 < 0.025) >= 5
 
 
 #files = glob.glob('data/s3/rllab-fixed-push-experts/*/*itr_300*')
 #files = glob.glob('data/s3/init5-push-experts/*/*itr_300*')
 # files = '/home/kevin/rllab/data/local/trpo-push2d/trpo_push2d_2018_03_17_02_02_30_0001/itr_950.pkl'
-files = '/home/kevin/rllab/data/local/trpo-push2d/trpo_push2d_2018_03_19_21_58_18_0001/itr_950.pkl'
-xmls = natsorted(glob.glob('/home/kevin/rllab/vendor/mujoco_models/pusher2d_xmls/train*'))
+file1 = '/home/kevin/rllab/data/local/trpo-push2d/trpo_push2d_2018_03_19_21_58_18_0001/itr_950.pkl'
+file2 = '/home/kevin/rllab/data/local/trpo-push2d-distractor/trpo_push2d_distractor_2018_03_24_18_26_35_0001/itr_350.pkl'
+xmls = natsorted(glob.glob('/home/kevin/rllab/vendor/mujoco_models/pusher2d_multigoal_xmls/*'))
 demos_per_expert = 8 #8
 #output_dir = 'data/expert_demos/'
 
@@ -47,23 +49,17 @@ filter_thresh = -55
 joint_thresh=0.7
 max_num_tries=24 #30 #12
 
-output_dir = 'data/push2d_demos/'
-
-TEST2 = True  # if True, use held out textures.
-if TEST2:
-    output_dir = 'data/test_push2d_demos/'
-    xmls = natsorted(glob.glob('/home/kevin/rllab/vendor/mujoco_models/pusher2d_xmls/test*'))
-    
+output_dir = 'data/test_push2d_multigoal_demos/'
 output_dir = Path(output_dir)
 output_dir.mkdir_p()
 
 offset = 0
-# task_inds = range(0,1000)
-# task_inds = range(535,1000)
-task_inds = range(len(xmls) // 24)
+task_inds = range(0,100)
 with tf.Session() as sess:
-    data = joblib.load(files)
-    policy = data['policy']
+    data1 = joblib.load(file1)
+    data2 = joblib.load(file2)
+    policy1 = data1['policy']
+    policy2 = data2['policy']
     for task_i in task_inds:
         if task_i % 25 == 0:
             print('collecting #' + str(task_i))
@@ -82,7 +78,7 @@ with tf.Session() as sess:
             env = TfEnv(normalize(pusher_env))
             num_tries += 1
             # path = rollout(env, policy, max_path_length=110, speedup=1,
-            path = rollout(env, policy, max_path_length=130, speedup=1,
+            path = rollout_two_policy(env, policy1, policy2, path_length1=130, max_path_length=250, speedup=1,
                      animated=True, always_return_paths=True, save_video=False, vision=True)
             # close the window after rollout
             env.render(close=True)

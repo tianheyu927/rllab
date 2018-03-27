@@ -45,14 +45,33 @@ class PusherEnvVision2D(MujocoEnv, Serializable):
         viewer.cam.trackbodyid=-1
 
     def get_current_obs(self):
+        if self.iteration <= 130:
+            return np.concatenate([
+                self.model.data.qpos.flat[:-6],
+                self.model.data.qvel.flat[:-6],
+                self.get_body_com("distal_4"),
+                self.get_body_com("distractor"),
+                self.get_body_com("object"),
+                self.get_body_com("goal"),
+            ])
         return np.concatenate([
             self.model.data.qpos.flat[:-6],
             self.model.data.qvel.flat[:-6],
             self.get_body_com("distal_4"),
-            self.get_body_com("distractor"),
             self.get_body_com("object"),
+            self.get_body_com("distractor"),
             self.get_body_com("goal"),
         ])
+    
+    def get_current_obs_true(self):
+        return np.concatenate([
+                self.model.data.qpos.flat[:-6],
+                self.model.data.qvel.flat[:-6],
+                self.get_body_com("distal_4"),
+                self.get_body_com("distractor"),
+                self.get_body_com("object"),
+                self.get_body_com("goal"),
+            ])
     
     def get_current_image_obs(self):
         image = self.viewer.get_image()
@@ -89,18 +108,21 @@ class PusherEnvVision2D(MujocoEnv, Serializable):
         return self.model.data.com_subtree[idx]
 
     def step(self, action):
-        if not hasattr(self, "iter"):
+        if not hasattr(self, "iteration"):
             self.iteration = 0
             self.init_pos = self.get_body_com("distal_4")
         self.frame_skip = 5
         pobj = self.get_body_com("object")
+        pdistr = self.get_body_com("distractor")
         pgoal = self.get_body_com("goal")
         ptip = self.get_body_com("distal_4")
         reward_ctrl = - np.square(action).sum()
-        if self.iteration >= 100:# and np.mean(self.dist[-3:]) <= 0.05:
-            # print('going back!')
-            reward_dist = - np.linalg.norm(self.init_pos-ptip)
-            reward = reward_dist + 0.1 * reward_ctrl
+        if self.iteration >= 130:
+            reward_dist = - np.linalg.norm(pgoal-pobj)
+            reward_dist_distr = - np.linalg.norm(pgoal-pdistr)
+            reward_near = - np.linalg.norm(pdistr - ptip)
+            # reward_return = - np.linalg.norm(self.init_pos-ptip)
+            reward = reward_dist + reward_dist_distr + 0.1 * reward_ctrl + 0.5 * reward_near
         else:
             reward_dist = - np.linalg.norm(pgoal-pobj)
             reward_near = - np.linalg.norm(pobj - ptip)
@@ -113,9 +135,15 @@ class PusherEnvVision2D(MujocoEnv, Serializable):
         self.iteration += 1
         return Step(next_obs, reward, done)
 
-    # @overrides
-    # def reset(self, init_state=None):
-    #     return self.get_current_obs()
+    @overrides
+    def reset(self, init_state=None):
+        self.iteration = 0
+        self.init_pos = self.get_body_com("distal_4")
+        self.reset_mujoco(init_state)
+        self.model.forward()
+        self.current_com = self.model.data.com_subtree[0]
+        self.dcom = np.zeros_like(self.current_com)
+        return self.get_current_obs()
 
     @overrides
     def log_diagnostics(self, paths):
