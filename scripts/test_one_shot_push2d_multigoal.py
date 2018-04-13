@@ -8,8 +8,9 @@ import numpy as np
 import random
 import tensorflow as tf
 from PIL import Image
-from rllab.sampler.utils import rollout
+from rllab.sampler.utils import rollout_sliding_window
 import sys
+import argparse
 
 from rllab.envs.mujoco.pusher2d_vision_env import PusherEnvVision2D
 from rllab.envs.normalized_env import normalize
@@ -17,7 +18,7 @@ from sandbox.rocky.tf.envs.base import TfEnv
 
 DEMO_DIR = 'data/push2d_demos/'
 SCALE_FILE_PATH = '/home/kevin/maml_imitation_private/data/scale_and_bias_push2d_pair.pkl'
-META_PATH = '/home/kevin/maml_imitation_private/data/checkpoints/push2d_pair.xavier_init.4_conv.2_strides.16_5x5_filters.3_fc.200_dim.bt_dim_10.mbs_15.ubs_1.meta_lr_0.001.numstep_1.updatelr_0.005.conv_bt.all_fc_bt.fp.two_heads/model_48000.meta'
+META_PATH = '/home/kevin/maml_imitation_private/data/checkpoints/push2d_pair.xavier_init.4_conv.2_strides.16_5x5_filters.3_fc.200_dim.bt_dim_10.mbs_15.ubs_1.meta_lr_0.001.numstep_1.updatelr_0.005.conv_bt.all_fc_bt.fp.two_heads/model_41000.meta'
 LOG_DIR = '/home/kevin/maml_imitation_private/data/checkpoints/push2d_pair.xavier_init.4_conv.2_strides.16_5x5_filters.3_fc.200_dim.bt_dim_10.mbs_15.ubs_1.meta_lr_0.001.numstep_1.updatelr_0.005.conv_bt.all_fc_bt.fp.two_heads'
 
 class TFAgent(object):
@@ -126,9 +127,10 @@ def eval_success(path):
       return np.sum(dists < 0.025) >= 10 and back_flag
     #   return np.sum(dists < 0.017) >= 10 and back_flag
 
-def main(meta_path, demo_dir, log_dir, validation=False, save_video=True, lstm=False, num_input_demos=1):
-    gpu_options = tf.GPUOptions(per_process_gpu_memory_fraction=0.2)
-    tf_config = tf.ConfigProto(gpu_options=gpu_options)
+def main(meta_path, demo_dir, log_dir, test=True, window_size=135,
+        run_steps=135, save_video=True, lstm=False, num_input_demos=1):
+    tf_config = tf.ConfigProto()
+    tf_config.gpu_options.allow_growth = True
     with tf.Session(config=tf_config) as sess:
         saver = tf.train.import_meta_graph(meta_path)
         saver.restore(sess, meta_path[:-5])
@@ -150,7 +152,7 @@ def main(meta_path, demo_dir, log_dir, validation=False, save_video=True, lstm=F
         num_trials = 0
         trials_per_task = 5
         
-        if validation:
+        if not test:
             task_ids = all_ids[-60:]
         else:
             task_ids = all_ids
@@ -167,8 +169,8 @@ def main(meta_path, demo_dir, log_dir, validation=False, save_video=True, lstm=F
             xml_filepath = find_xml_filepath(demo_info)
             # env = load_env(demo_info)
     
-            policy = TFAgent(feed_dict, scale_file, sess)
-            policy.set_demo(demo_gifs, demoX, demoU)
+            policy = TFAgent(feed_dict, scale_file, sess, window_size=window_size)
+            demo_data = (demo_gifs, demoX, demoU)
             returns = []
             gif_dir = log_dir + '/evaluated_gifs/'
             gif_path = Path(gif_dir)
@@ -177,10 +179,11 @@ def main(meta_path, demo_dir, log_dir, validation=False, save_video=True, lstm=F
                 print(xml_filepath[j])
                 env = load_env(xml_filepath[j])
                 video_suffix = gif_dir + str(id) + 'demo_' + str(num_input_demos) + '_' + str(len(returns)) + '.gif'
-                path = rollout(env, policy, max_path_length=135, env_reset=True,
-                               animated=True, speedup=1, always_return_paths=True, 
-                               save_video=save_video, video_filename=video_suffix, 
-                               vision=True, lstm=lstm, is_push_2d=True)
+                path = rollout_sliding_window(env, policy, max_path_length=policy.T, env_reset=True,
+                                               animated=True, speedup=1, always_return_paths=True, 
+                                               save_video=save_video, video_filename=video_suffix, 
+                                               vision=True, lstm=lstm, is_push_2d=True, demo=demo_data,
+                                               window_size=window_size, run_steps=run_steps)
                 env.render(close=True)
                 # val_demoX, val_demoU, val_demo_gifs, val_demo_info = load_demo(str(task_id), demo_dir, [j])
                 # init_act = policy.get_vision_action(np.array(val_demo_gifs)[0, 0, :, :, :3], val_demoX[0, 0, :])[0]
@@ -203,4 +206,18 @@ def main(meta_path, demo_dir, log_dir, validation=False, save_video=True, lstm=F
         f.write(success_rate_msg + '\n')
 
 if __name__ == '__main__':
-    main(meta_path=META_PATH, demo_dir=DEMO_DIR, log_dir=LOG_DIR, validation=True, save_video=False)
+    parser = argparse.ArgumentParser()
+    parser.add_argument('--window_size', type=int, default=135)
+    parser.add_argument('--run_steps', type=int, default=135)
+    parser.add_argument('--test', type=bool, default=True)
+    parser.add_argument('--save_video', type=bool, default=False)
+    window_size = args.window_size
+    run_steps = args.run_steps
+    test = args.test
+    main(meta_path=META_PATH, 
+        demo_dir=DEMO_DIR, 
+        log_dir=LOG_DIR, 
+        test=test, 
+        window_size=window_size,
+        run_steps=run_steps,
+        save_video=save_video)

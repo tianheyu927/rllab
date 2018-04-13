@@ -34,7 +34,7 @@ def eval_success(path):
 # files = '/home/kevin/rllab/data/local/trpo-push2d/trpo_push2d_2018_03_17_02_02_30_0001/itr_950.pkl'
 # file1 = '/home/kevin/rllab/data/local/trpo-push2d/trpo_push2d_2018_03_19_21_58_18_0001/itr_950.pkl'
 file1 = '/home/kevin/rllab/data/local/trpo-push2d/trpo_push2d_2018_04_06_20_04_47_0001/itr_650.pkl'
-file2 = '/home/kevin/rllab/data/local/trpo-push2d-distractor/trpo_push2d_distractor_2018_04_13_01_23_51_0001/itr_950.pkl'
+file2 = '/home/kevin/rllab/data/local/trpo-push2d-distractor/trpo_push2d_distractor_2018_04_13_12_53_15_0001/itr_300.pkl'
 xmls = natsorted(glob.glob('/home/kevin/rllab/vendor/mujoco_models/pusher2d_multigoal_xmls/*'))
 demos_per_expert = 8 #8
 #output_dir = 'data/expert_demos/'
@@ -56,8 +56,8 @@ output_dir.mkdir_p()
 
 offset = 0
 task_inds = range(0,100)
-gpu_options = tf.GPUOptions(per_process_gpu_memory_fraction=0.2)
-tf_config = tf.ConfigProto(gpu_options=gpu_options)
+tf_config = tf.ConfigProto()
+tf_config.gpu_options.allow_growth = True
 with tf.Session(config=tf_config) as sess:
     data1 = joblib.load(file1)
     data2 = joblib.load(file2)
