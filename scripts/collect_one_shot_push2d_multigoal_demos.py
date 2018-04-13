@@ -32,8 +32,9 @@ def eval_success(path):
 #files = glob.glob('data/s3/rllab-fixed-push-experts/*/*itr_300*')
 #files = glob.glob('data/s3/init5-push-experts/*/*itr_300*')
 # files = '/home/kevin/rllab/data/local/trpo-push2d/trpo_push2d_2018_03_17_02_02_30_0001/itr_950.pkl'
-file1 = '/home/kevin/rllab/data/local/trpo-push2d/trpo_push2d_2018_03_19_21_58_18_0001/itr_950.pkl'
-file2 = '/home/kevin/rllab/data/local/trpo-push2d-distractor/trpo_push2d_distractor_2018_03_24_18_26_35_0001/itr_350.pkl'
+# file1 = '/home/kevin/rllab/data/local/trpo-push2d/trpo_push2d_2018_03_19_21_58_18_0001/itr_950.pkl'
+file1 = '/home/kevin/rllab/data/local/trpo-push2d/trpo_push2d_2018_03_28_17_10_40_0001/itr_200.pkl'
+file2 = '/home/kevin/rllab/data/local/trpo-push2d-distractor/trpo_push2d_distractor_2018_03_31_19_54_01_0001/itr_300.pkl'
 xmls = natsorted(glob.glob('/home/kevin/rllab/vendor/mujoco_models/pusher2d_multigoal_xmls/*'))
 demos_per_expert = 8 #8
 #output_dir = 'data/expert_demos/'
@@ -78,7 +79,7 @@ with tf.Session() as sess:
             env = TfEnv(normalize(pusher_env))
             num_tries += 1
             # path = rollout(env, policy, max_path_length=110, speedup=1,
-            path = rollout_two_policy(env, policy1, policy2, path_length1=130, max_path_length=250, speedup=1,
+            path = rollout_two_policy(env, policy1, policy2, path_length1=115, max_path_length=235, speedup=1,
                      animated=True, always_return_paths=True, save_video=False, vision=True)
             # close the window after rollout
             env.render(close=True)

@@ -22,7 +22,7 @@ def stack_tensor_dict_list(tensor_dict_list):
 def stack_tensor_list(tensor_list):
     return np.array(tensor_list)
 
-def rollout(env, agent, max_path_length=np.inf, animated=False, speedup=1,
+def rollout(env, agent, max_path_length=np.inf, animated=False, speedup=1, noise=0.0,
             always_return_paths=False, env_reset=True, save_video=True, video_filename='sim_out.mp4', vision=False):
     observations = []
     actions = []
@@ -44,10 +44,12 @@ def rollout(env, agent, max_path_length=np.inf, animated=False, speedup=1,
             viewer = env.wrapped_env.wrapped_env.get_viewer()
         viewer.autoscale()
         viewer.cam.trackbodyid=0
+        # viewer.cam.distance = 4.0
         viewer.cam.distance = 4.0
         rotation_angle = 0
-        cam_dist = 4
-        cam_pos = np.array([0, 0, 0, cam_dist, -90, rotation_angle])
+        cam_dist = 2 #4
+        # cam_pos = np.array([0, 0, 0, cam_dist, -90, rotation_angle])
+        cam_pos = np.array([0.2, -0.4, 0, cam_dist, -90, rotation_angle])
         for i in range(3):
             viewer.cam.lookat[i] = cam_pos[i]
         viewer.cam.distance = cam_pos[3]
@@ -69,7 +71,9 @@ def rollout(env, agent, max_path_length=np.inf, animated=False, speedup=1,
             a, agent_info = agent.get_vision_action(image_obs, nonimage_obs, t=path_length)
         else:
             a, agent_info = agent.get_action(o)
-
+        
+        if noise > 0:
+            a += noise*np.random.randn(*a.shape)
         next_o, r, d, env_info = env.step(a)
         if vision:
             if 'get_current_image_obs' in dir(env):
@@ -134,7 +138,7 @@ def rollout(env, agent, max_path_length=np.inf, animated=False, speedup=1,
             env_infos=stack_tensor_dict_list(env_infos),
         )
 
-def rollout_two_policy(env, agent1, agent2, path_length1=np.inf, max_path_length=np.inf, animated=False, speedup=1,
+def rollout_two_policy(env, agent1, agent2, path_length1=np.inf, max_path_length=np.inf, animated=False, speedup=1, noise=0.0,
             always_return_paths=False, env_reset=True, save_video=True, video_filename='sim_out.mp4', vision=False):
     observations = []
     actions = []
@@ -157,10 +161,12 @@ def rollout_two_policy(env, agent1, agent2, path_length1=np.inf, max_path_length
             viewer = env.wrapped_env.wrapped_env.get_viewer()
         viewer.autoscale()
         viewer.cam.trackbodyid=0
+        # viewer.cam.distance = 4.0
         viewer.cam.distance = 4.0
         rotation_angle = 0
-        cam_dist = 4
-        cam_pos = np.array([0, 0, 0, cam_dist, -90, rotation_angle])
+        cam_dist = 2 #4
+        # cam_pos = np.array([0, 0, 0, cam_dist, -90, rotation_angle])
+        cam_pos = np.array([0.2, -0.4, 0, cam_dist, -90, rotation_angle])
         for i in range(3):
             viewer.cam.lookat[i] = cam_pos[i]
         viewer.cam.distance = cam_pos[3]
@@ -186,7 +192,9 @@ def rollout_two_policy(env, agent1, agent2, path_length1=np.inf, max_path_length
             a, agent_info = agent.get_vision_action(image_obs, nonimage_obs, t=path_length)
         else:
             a, agent_info = agent.get_action(o)
-
+        
+        if noise > 0:
+            a += noise*np.random.randn(*a.shape)
         next_o, r, d, env_info = env.step(a)
         if vision:
             if 'get_current_image_obs' in dir(env):

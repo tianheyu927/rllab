@@ -40,7 +40,8 @@
 			<joint range="-10.3213 10.3" pos="0.025 0.025 0.025" name="obj_slidey" type="slide" axis="0 1 0" damping="0.5"/>
 			<joint range="-10.3213 10.3" pos="0.025 0.025 0.025" name="obj_slidex" type="slide" axis="1 0 0" damping="0.5"/>
 		</body>
-		<body name="goal" pos="-0.4 -0.55 -0.145">
+		<!--<body name="goal" pos="-0.4 -0.65 -0.145">-->
+		<body name="goal" pos="-0.25 -0.65 -0.145">
 			<geom density="0.00001" rgba="1 0 0 1" conaffinity="0" contype="0" type="cylinder" size="0.17 0.005 0.2"/>
 			<joint range="-10.3213 10.3" pos="0 0 0" name="goal_slidey" type="slide" axis="0 1 0" damping="0.5"/>
 			<joint range="-10.3213 10.3" pos="0 0 0" name="goal_slidex" type="slide" axis="1 0 0" damping="0.5"/>
