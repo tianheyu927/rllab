@@ -33,8 +33,8 @@ def eval_success(path):
 #files = glob.glob('data/s3/init5-push-experts/*/*itr_300*')
 # files = '/home/kevin/rllab/data/local/trpo-push2d/trpo_push2d_2018_03_17_02_02_30_0001/itr_950.pkl'
 # file1 = '/home/kevin/rllab/data/local/trpo-push2d/trpo_push2d_2018_03_19_21_58_18_0001/itr_950.pkl'
-file1 = '/home/kevin/rllab/data/local/trpo-push2d/trpo_push2d_2018_03_28_17_10_40_0001/itr_200.pkl'
-file2 = '/home/kevin/rllab/data/local/trpo-push2d-distractor/trpo_push2d_distractor_2018_03_31_19_54_01_0001/itr_300.pkl'
+file1 = '/home/kevin/rllab/data/local/trpo-push2d/trpo_push2d_2018_04_06_20_04_47_0001/itr_650.pkl'
+file2 = '/home/kevin/rllab/data/local/trpo-push2d-distractor/trpo_push2d_distractor_2018_04_13_01_23_51_0001/itr_950.pkl'
 xmls = natsorted(glob.glob('/home/kevin/rllab/vendor/mujoco_models/pusher2d_multigoal_xmls/*'))
 demos_per_expert = 8 #8
 #output_dir = 'data/expert_demos/'
@@ -56,7 +56,9 @@ output_dir.mkdir_p()
 
 offset = 0
 task_inds = range(0,100)
-with tf.Session() as sess:
+gpu_options = tf.GPUOptions(per_process_gpu_memory_fraction=0.2)
+tf_config = tf.ConfigProto(gpu_options=gpu_options)
+with tf.Session(config=tf_config) as sess:
     data1 = joblib.load(file1)
     data2 = joblib.load(file2)
     policy1 = data1['policy']
@@ -79,7 +81,7 @@ with tf.Session() as sess:
             env = TfEnv(normalize(pusher_env))
             num_tries += 1
             # path = rollout(env, policy, max_path_length=110, speedup=1,
-            path = rollout_two_policy(env, policy1, policy2, path_length1=115, max_path_length=235, speedup=1,
+            path = rollout_two_policy(env, policy1, policy2, path_length1=135, max_path_length=255, speedup=1,
                      animated=True, always_return_paths=True, save_video=False, vision=True)
             # close the window after rollout
             env.render(close=True)

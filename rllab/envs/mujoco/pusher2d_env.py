@@ -30,42 +30,42 @@ class PusherEnv2D(MujocoEnv, Serializable):
         Serializable.__init__(self, *args, **kwargs)
 
     def get_current_obs(self):
-        if self.iteration >= 100 and self.iteration < 130:
-            return np.concatenate([
-                self.model.data.qpos.flat[:-6],
-                self.model.data.qvel.flat[:-6],
-                self.get_body_com("distal_4"),
-                self.get_body_com("distractor"),
-                # self.get_body_com("object"),
-                self.init_pos,
-                # self.init_pos,
-                self.get_body_com("goal"),
-            ])
-        elif self.iteration >= 130:
-            return np.concatenate([
-                self.model.data.qpos.flat[:-6],
-                self.model.data.qvel.flat[:-6],
-                self.get_body_com("distal_4"),
-                self.get_body_com("object"),
-                self.get_body_com("distractor"),
-                self.get_body_com("goal"),
-            ])
-        return np.concatenate([
-            self.model.data.qpos.flat[:-6],
-            self.model.data.qvel.flat[:-6],
-            self.get_body_com("distal_4"),
-            self.get_body_com("distractor"),
-            self.get_body_com("object"),
-            self.get_body_com("goal"),
-        ])
+        # if self.iteration >= 100 and self.iteration < 130:
+        #     return np.concatenate([
+        #         self.model.data.qpos.flat[:-6],
+        #         self.model.data.qvel.flat[:-6],
+        #         self.get_body_com("distal_4"),
+        #         self.get_body_com("distractor"),
+        #         # self.get_body_com("object"),
+        #         self.init_pos,
+        #         # self.init_pos,
+        #         self.get_body_com("goal"),
+        #     ])
+        # elif self.iteration >= 130:
+        #     return np.concatenate([
+        #         self.model.data.qpos.flat[:-6],
+        #         self.model.data.qvel.flat[:-6],
+        #         self.get_body_com("distal_4"),
+        #         self.get_body_com("object"),
+        #         self.get_body_com("distractor"),
+        #         self.get_body_com("goal"),
+        #     ])
         # return np.concatenate([
         #     self.model.data.qpos.flat[:-6],
         #     self.model.data.qvel.flat[:-6],
         #     self.get_body_com("distal_4"),
-        #     self.get_body_com("object"),
         #     self.get_body_com("distractor"),
+        #     self.get_body_com("object"),
         #     self.get_body_com("goal"),
         # ])
+        return np.concatenate([
+            self.model.data.qpos.flat[:-6],
+            self.model.data.qvel.flat[:-6],
+            self.get_body_com("distal_4"),
+            self.get_body_com("object"),
+            self.get_body_com("distractor"),
+            self.get_body_com("goal"),
+        ])
     
     def get_current_image_obs(self):
         image = self.viewer.get_image()
@@ -112,30 +112,30 @@ class PusherEnv2D(MujocoEnv, Serializable):
         pgoal = self.get_body_com("goal")
         ptip = self.get_body_com("distal_4")
         reward_ctrl = - np.square(action).sum()
-        if self.iteration >= 100 and self.iteration < 130:# and np.mean(self.dist[-10:]) <= 0.017:
-            # print('going back!')
-            reward_dist = - np.linalg.norm(self.init_pos[:-1]-ptip[:-1])
-            reward_distr = np.linalg.norm(pdistr[:-1]-ptip[:-1])
-            # reward = reward_dist + 0.01 * reward_ctrl# + 0.1 * reward_distr
-            reward = 1.1 * reward_dist + 0.1 * reward_ctrl + 0.1 * reward_distr# + 0.1 * reward_distr
-            # reward = reward_dist + 0.1 * reward_ctrl + 0.1 * reward_distr# + 0.1 * reward_distr
-        elif self.iteration >= 130:
-            reward_dist = - np.linalg.norm(pgoal[:-1]-pobj[:-1])
-            reward_dist_distr = - np.linalg.norm(pgoal[:-1]-pdistr[:-1])
-            reward_near = - np.linalg.norm(pdistr[:-1]-ptip[:-1])
-            # reward_return = - np.linalg.norm(self.init_pos-ptip)
-            reward = reward_dist + reward_dist_distr + 0.1 * reward_ctrl + 0.5 * reward_near
-        else:
-            reward_dist = - np.linalg.norm(pgoal[:-1]-pobj[:-1])
-            reward_near = - np.linalg.norm(pobj[:-1] - ptip[:-1])
-            # reward_return = - np.linalg.norm(self.init_pos-ptip)
-            self.dist.append(-reward_dist)
-            reward = reward_dist + 0.1 * reward_ctrl + 0.5 * reward_near
-        # reward_dist = - np.linalg.norm(pgoal-pobj)
-        # reward_dist_distr = - np.linalg.norm(pgoal-pdistr)
-        # reward_near = - np.linalg.norm(pdistr-ptip)
-        # # reward_return = - np.linalg.norm(self.init_pos-ptip)
-        # reward = reward_dist + reward_dist_distr + 0.1 * reward_ctrl + 0.5 * reward_near
+        # if self.iteration >= 100 and self.iteration < 130:# and np.mean(self.dist[-10:]) <= 0.017:
+        #     # print('going back!')
+        #     reward_dist = - np.linalg.norm(self.init_pos[:-1]-ptip[:-1])
+        #     reward_distr = np.linalg.norm(pdistr[:-1]-ptip[:-1])
+        #     # reward = reward_dist + 0.01 * reward_ctrl# + 0.1 * reward_distr
+        #     reward = 1.1 * reward_dist + 0.1 * reward_ctrl + 0.1 * reward_distr# + 0.1 * reward_distr
+        #     # reward = reward_dist + 0.1 * reward_ctrl + 0.1 * reward_distr# + 0.1 * reward_distr
+        # elif self.iteration >= 130:
+        #     reward_dist = - np.linalg.norm(pgoal[:-1]-pobj[:-1])
+        #     reward_dist_distr = - np.linalg.norm(pgoal[:-1]-pdistr[:-1])
+        #     reward_near = - np.linalg.norm(pdistr[:-1]-ptip[:-1])
+        #     # reward_return = - np.linalg.norm(self.init_pos-ptip)
+        #     reward = reward_dist + reward_dist_distr + 0.1 * reward_ctrl + 0.5 * reward_near
+        # else:
+        #     reward_dist = - np.linalg.norm(pgoal[:-1]-pobj[:-1])
+        #     reward_near = - np.linalg.norm(pobj[:-1] - ptip[:-1])
+        #     # reward_return = - np.linalg.norm(self.init_pos-ptip)
+        #     self.dist.append(-reward_dist)
+        #     reward = reward_dist + 0.1 * reward_ctrl + 0.5 * reward_near
+        reward_dist = - np.linalg.norm(pgoal-pobj)
+        reward_dist_distr = - np.linalg.norm(pgoal-pdistr)
+        reward_near = - np.linalg.norm(pdistr-ptip)
+        # reward_return = - np.linalg.norm(self.init_pos-ptip)
+        reward = reward_dist + reward_dist_distr + 0.1 * reward_ctrl + 0.5 * reward_near
         self.forward_dynamics(action) # TODO - frame skip
         next_obs = self.get_current_obs()
 
@@ -164,18 +164,23 @@ class PusherEnv2D(MujocoEnv, Serializable):
                 #                 np.random.uniform(low=-0.1, high=0.3)]
                 # distractor_ = [np.random.uniform(low=-1.1, high=-0.2),
                 #                 np.random.uniform(low=-0.1, high=0.4)]
+                # distractor_ = [np.random.uniform(low=-1.1, high=-0.2),
+                #                 np.random.uniform(low=0., high=0.4)]
                 distractor_ = [np.random.uniform(low=-1.1, high=-0.2),
                                 np.random.uniform(low=0., high=0.4)]
             if np.linalg.norm(np.array(object_)-np.array(goal)) > 0.3:
                 if self.include_distractors: 
                     if np.linalg.norm(np.array(object_)[0]-np.array(distractor_)[0]) > 0.65 and \
-                        np.linalg.norm(np.array(distractor_)-np.array(goal)) > 0.3:
+                        np.linalg.norm(np.array(distractor_)-np.array(goal)) > 0.3 and \
+                        np.linalg.norm(np.array(object_)[0]-np.array(distractor_)[0]) > 0.55 and \
+                        np.linalg.norm(np.array(object_)[1]-np.array(distractor_)[1]) > 0.2 and \
+                        np.array(object_)[0] > np.array(distractor_)[0]: # for the second policy
                         break
                 else:
                     break
         self.object = np.array(object_)
         # for the second policy!!!
-        # self.object = np.array(goal)
+        self.object = np.array(goal)
         self.goal = np.array(goal)
         if self.include_distractors:
             self.distractor = np.array(distractor_)

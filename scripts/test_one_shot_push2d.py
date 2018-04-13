@@ -17,7 +17,7 @@ from sandbox.rocky.tf.envs.base import TfEnv
 
 DEMO_DIR = 'data/push2d_demos/'
 SCALE_FILE_PATH = '/home/kevin/maml_imitation_private/data/scale_and_bias_push2d_pair.pkl'
-META_PATH = '/home/kevin/maml_imitation_private/data/checkpoints/push2d_pair.xavier_init.4_conv.2_strides.16_5x5_filters.3_fc.200_dim.bt_dim_10.mbs_15.ubs_1.meta_lr_0.001.numstep_1.updatelr_0.005.conv_bt.all_fc_bt.fp.two_heads/model_46000.meta'
+META_PATH = '/home/kevin/maml_imitation_private/data/checkpoints/push2d_pair.xavier_init.4_conv.2_strides.16_5x5_filters.3_fc.200_dim.bt_dim_10.mbs_15.ubs_1.meta_lr_0.001.numstep_1.updatelr_0.005.conv_bt.all_fc_bt.fp.two_heads/model_41000.meta'
 LOG_DIR = '/home/kevin/maml_imitation_private/data/checkpoints/push2d_pair.xavier_init.4_conv.2_strides.16_5x5_filters.3_fc.200_dim.bt_dim_10.mbs_15.ubs_1.meta_lr_0.001.numstep_1.updatelr_0.005.conv_bt.all_fc_bt.fp.two_heads'
 
 class TFAgent(object):
@@ -199,7 +199,7 @@ def main(meta_path, demo_dir, log_dir, validation=False, save_video=True, lstm=F
                     break
     success_rate_msg = "Final success rate is %.5f" % (float(num_success)/num_trials)
     with open(log_dir + '/log_push2d.txt', 'a') as f:
-        f.write(meta_path.split('/')[:-5] + ':\n')
+        f.write(meta_path[:-5] + ':\n')
         f.write(success_rate_msg + '\n')
 
 if __name__ == '__main__':

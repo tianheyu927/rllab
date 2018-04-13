@@ -217,12 +217,13 @@ if __name__ == '__main__':
             copyfile(xml_file, GYM_PATH + '/gym/envs/mujoco/assets/pusher.xml')
     else:
         # TODO - could call code to autogenerate xml file here
-        np.random.seed(3) #0
+        np.random.seed(3) #3
         # goal_pos = (-0.4, -0.65, -0.145)
         goal_pos = (-0.25, -0.65, -0.145)
         train_colors = []
+        colors = []
         # for i in range(500):
-        for i in range(500):
+        for i in range(600):
         # for i in range(50):
         # for i in range(100):
             color = np.random.uniform(low=0, high=1, size=3)
@@ -231,12 +232,18 @@ if __name__ == '__main__':
             distractor_color = np.random.uniform(low=0, high=1, size=3)
             while (np.linalg.norm(distractor_color - np.array([1.,0.,0.])) < 0.5 and \
                     np.linalg.norm(distractor_color - color) < 1.0) or \
-                    (i >= 470 and distractor_color in train_colors):
+                    (i >= 470 and i < 500 and distractor_color in train_colors) or \
+                    (i >= 500 and distractor_color in colors):
                 distractor_color = np.random.uniform(low=0, high=1, size=3)
             color = np.concatenate((color, [1.0]))
             distractor_color = np.concatenate((distractor_color, [1.0]))
             if i < 470:
                 train_colors.extend([color, distractor_color])
+                continue
+            elif i >= 470 and i < 500:
+                colors.extend([color, distractor_color])
+                continue
+
             for j in range(24):
                 while True:
                     # object_ = [np.random.uniform(low=-0.1, high=0.3),
@@ -247,24 +254,21 @@ if __name__ == '__main__':
                     #             np.random.uniform(low=-1.0, high=-0.2)]
                     # distractor_ = [np.random.uniform(low=-0.1, high=0.4),
                     #             np.random.uniform(low=-1.0, high=-0.2)]
-                    object_ = [np.random.uniform(low=0.0, high=0.4),
-                                np.random.uniform(low=-1.05, high=-0.3)]
-                    distractor_ = [np.random.uniform(low=0.0, high=0.4),
-                                np.random.uniform(low=-1.05, high=-0.3)]
-                    # object_ = [np.random.uniform(low=-0.1, high=0.2),
-                    #             np.random.uniform(low=-0.3, high=-0.2)]
-                    # distractor_ = [np.random.uniform(low=0.1, high=0.2),
-                                # np.random.uniform(low=-1.1, high=-1.1)]
-                    # object_ = [np.random.uniform(low=-0.1, high=0.4),
-                    #             np.random.uniform(low=-1.0, high=-0.2)]
-                    # distractor_ = [np.random.uniform(low=-0.1, high=0.4),
-                    #             np.random.uniform(low=-1.1, high=-0.2)]
+                    # object_ = [np.random.uniform(low=0.0, high=0.4),
+                    #             np.random.uniform(low=-1.05, high=-0.3)]
+                    # distractor_ = [np.random.uniform(low=0.0, high=0.4),
+                    #             np.random.uniform(low=-1.05, high=-0.3)]
+                    object_ = [np.random.uniform(low=0.0, high=0.3),
+                                np.random.uniform(low=-1.0, high=-0.3)]
+                    distractor_ = [np.random.uniform(low=0.0, high=0.3),
+                                np.random.uniform(low=-1.0, high=-0.3)]
                     if np.linalg.norm(np.array(object_)-np.array(goal_pos)[:-1]) > 0.3 and \
                         np.linalg.norm(np.array(object_)[-1]-np.array(distractor_)[-1]) > 0.55 and \
                         np.linalg.norm(np.array(object_)[0]-np.array(distractor_)[0]) > 0.2 and \
                         np.linalg.norm(np.array(distractor_)-np.array(goal_pos)[:-1]) > 0.3 and \
-                        ((j < 12 and object_[1] > distractor_[1] and object_[0] < distractor_[0]) or \
-                        (j >= 12 and object_[1] <= distractor_[1] and object_[0] > distractor_[0])):
+                        (object_[1] > distractor_[1] and object_[0] < distractor_[0]):
+                        # ((j < 12 and object_[1] > distractor_[1] and object_[0] < distractor_[0]) or \
+                        # (j >= 12 and object_[1] <= distractor_[1] and object_[0] > distractor_[0])):
                     # if np.linalg.norm(np.array(object_)-np.array(goal_pos)[:-1]) > 0.3 and \
                     #     np.linalg.norm(np.array(object_)[-1]-np.array(distractor_)[-1]) > 0.45 and \
                     #     np.linalg.norm(np.array(distractor_)-np.array(goal_pos)[:-1]) > 0.3:# and \
@@ -280,11 +284,12 @@ if __name__ == '__main__':
                 # dir1 = RLLAB_PATH + 'test_%d.xml' % (24*2*i + j)
                 # dir2 = RLLAB_PATH + 'test_%d.xml' % (24*(2*i+1) + j)
                 # dir1 = RLLAB_MULTIGOAL_PATH + 'test_%d.xml' % (24*i + j)
-                dir1 = RLLAB_SHORTER_PATH + 'train_%d.xml' % (24*2*i + j)
-                dir2 = RLLAB_SHORTER_PATH + 'train_%d.xml' % (24*(2*i+1) + j)
-                # dir1 = RLLAB_SHORTER_PATH + 'test_%d.xml' % (24*2*i + j)
-                # dir2 = RLLAB_SHORTER_PATH + 'test_%d.xml' % (24*(2*i+1) + j)
+                # dir1 = RLLAB_SHORTER_PATH + 'train_%d.xml' % (24*2*i + j)
+                # dir2 = RLLAB_SHORTER_PATH + 'train_%d.xml' % (24*(2*i+1) + j)
+                # dir1 = RLLAB_SHORTER_PATH + 'test_%d.xml' % (24*2*(i-500) + j)
+                # dir2 = RLLAB_SHORTER_PATH + 'test_%d.xml' % (24*(2*(i-500)+1) + j)
+                dir1 = RLLAB_MULTIGOAL_PATH + 'test_%d.xml' % (24*(i-500) + j)
                 print('Saving xml to %s' % dir1)
                 model1.save(dir1)
-                print('Saving xml to %s' % dir2)
-                model2.save(dir2)
+                # print('Saving xml to %s' % dir2)
+                # model2.save(dir2)
