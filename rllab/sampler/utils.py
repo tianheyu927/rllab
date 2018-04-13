@@ -23,7 +23,8 @@ def stack_tensor_list(tensor_list):
     return np.array(tensor_list)
 
 def rollout(env, agent, max_path_length=np.inf, animated=False, speedup=1, noise=0.0,
-            always_return_paths=False, env_reset=True, save_video=True, video_filename='sim_out.mp4', vision=False):
+            always_return_paths=False, env_reset=True, save_video=True, lstm=False, 
+            video_filename='sim_out.mp4', vision=False, is_push_2d=False):
     observations = []
     actions = []
     rewards = []
@@ -82,7 +83,13 @@ def rollout(env, agent, max_path_length=np.inf, animated=False, speedup=1, noise
                 next_image_obs, next_nonimage_obs = env.wrapped_env.wrapped_env.get_current_image_obs()
 
         #observations.append(env.observation_space.flatten(o))
-        observations.append(np.squeeze(o))
+        if is_push_2d:
+            if 'get_current_obs_true' in dir(env):
+                observations.append(np.squeeze(env.get_current_obs_true()))
+            else:
+                observations.append(np.squeeze(env.wrapped_env.wrapped_env.get_current_obs_true()))
+        else:
+            observations.append(np.squeeze(o))
         if vision:
             image_obses.append(image_obs)
             nonimage_obses.append(nonimage_obs)

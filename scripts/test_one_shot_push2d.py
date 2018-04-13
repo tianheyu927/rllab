@@ -1,5 +1,6 @@
 import glob
 import os
+from path import Path
 import imageio
 import joblib
 import pickle
@@ -8,24 +9,27 @@ import random
 import tensorflow as tf
 from PIL import Image
 from rllab.sampler.utils import rollout
-from utils import mkdir_p, load_scale_and_bias
 import sys
 
 from rllab.envs.mujoco.pusher2d_vision_env import PusherEnvVision2D
 from rllab.envs.normalized_env import normalize
 from sandbox.rocky.tf.envs.base import TfEnv
 
-DEMO_DIR = 'data/push2d_demos'
+DEMO_DIR = 'data/push2d_demos/'
 SCALE_FILE_PATH = '/home/kevin/maml_imitation_private/data/scale_and_bias_push2d_pair.pkl'
-META_PATH = '/home/kevin/maml_imitation_private/data/checkpoints/push2d_pair.xavier_init.4_conv.2_strides.16_5x5_filters.3_fc.200_dim.bt_dim_10.mbs_15.ubs_1.meta_lr_0.001.numstep_1.updatelr_0.005.conv_bt.all_fc_bt.fp.two_heads/model_35000.meta'
+META_PATH = '/home/kevin/maml_imitation_private/data/checkpoints/push2d_pair.xavier_init.4_conv.2_strides.16_5x5_filters.3_fc.200_dim.bt_dim_10.mbs_15.ubs_1.meta_lr_0.001.numstep_1.updatelr_0.005.conv_bt.all_fc_bt.fp.two_heads/model_46000.meta'
+LOG_DIR = '/home/kevin/maml_imitation_private/data/checkpoints/push2d_pair.xavier_init.4_conv.2_strides.16_5x5_filters.3_fc.200_dim.bt_dim_10.mbs_15.ubs_1.meta_lr_0.001.numstep_1.updatelr_0.005.conv_bt.all_fc_bt.fp.two_heads'
 
 class TFAgent(object):
-    def __init__(self, model, scale_bias_file, sess):
+    def __init__(self, feed_dict, scale_bias_file, sess):
         self.sess = sess
-        self.model = model
+        self.feed_dict = feed_dict
 
         if scale_bias_file:
-            self.scale, self.bias = load_scale_and_bias(scale_bias_file)
+            with open(SCALE_FILE_PATH, 'rb') as f:
+                data = pickle.load(f, encoding='latin1')
+                self.scale = data['scale']
+                self.bias = data['bias']
         else:
             self.scale = None
 
@@ -51,14 +55,14 @@ class TFAgent(object):
 
     def get_action(self, obs):
         obs = obs.reshape((1,1,18))
-        action = self.sess.run(self.model.test_act_op, {self.model.statea: self.demoX.dot(self.scale) + self.bias,
-                               self.model.actiona: self.demoU,
-                               self.model.stateb: obs.dot(self.scale) + self.bias})
+        action = self.sess.run(self.feed_dict['output'], {self.feed_dict['statea']: self.demoX.dot(self.scale) + self.bias,
+                               self.feed_dict['actiona']: self.demoU,
+                               self.feed_dict['stateb']: obs.dot(self.scale) + self.bias})
         return action, dict()
 
     def get_vision_action(self, image, obs, t=-1):
-        if CROP:
-            image = np.array(Image.fromarray(image).crop((40,25,120,90)))
+        # if CROP:
+        #     image = np.array(Image.fromarray(image).crop((40,25,120,90)))
         
         T = 1
         if len(image.shape) == 3:
@@ -73,33 +77,28 @@ class TFAgent(object):
     
             obs = obs.reshape((1,T,12))
 
-        if self.scale is not None:
-            action = self.sess.run(self.model.test_act_op,
-                               {self.model.statea: self.demoX.dot(self.scale) + self.bias,
-                               self.model.obsa: self.demoVideo,
-                               self.model.actiona: self.demoU,
-                               self.model.stateb: obs.dot(self.scale) + self.bias,
-                               self.model.obsb: image})
-        else:
-            action = self.sess.run(self.test_act_op,
-                                {self.imagea: self.demoVideo,
-                                self.actiona: self.demoU,
-                                self.imageb: image})
+        action = self.sess.run(self.feed_dict['output'],
+                           {self.feed_dict['statea']: self.demoX.dot(self.scale) + self.bias,
+                           self.feed_dict['obsa']: self.demoVideo,
+                           self.feed_dict['actiona']: self.demoU,
+                           self.feed_dict['stateb']: obs.dot(self.scale) + self.bias,
+                           self.feed_dict['obsb']: image})
         if T > 1:
             action = np.squeeze(action)[t]
         return action, dict()
 
 def find_xml_filepath(demo_info):
     xml_filepath = demo_info['xml']
-    # suffixs = [xml_path[xml_path.index('test_'):] for xml_path in xml_filepath]
-    suffixs = [xml_path[xml_path.index('train_'):] for xml_path in xml_filepath]
-    prefix = XML_PATH
-    xml_filepath = [str(prefix + suffix) for suffix in suffixs]
+    # # suffixs = [xml_path[xml_path.index('test_'):] for xml_path in xml_filepath]
+    # suffixs = [xml_path[xml_path.index('train_'):] for xml_path in xml_filepath]
+    # prefix = XML_PATH
+    # xml_filepath = [str(prefix + suffix) for suffix in suffixs]
 
     return xml_filepath
     
 def load_env(xml_filepath):
-    env = PusherEnv3DOF(**{'xml_file':xml_filepath, 'distractors': True})
+    pusher_env = PusherEnvVision2D(**{'xml_file':xml_filepath, 'distractors': True})
+    env = TfEnv(normalize(pusher_env))
     return env
 
 def load_demo(task_id, demo_dir, demo_inds):
@@ -111,13 +110,9 @@ def load_demo(task_id, demo_dir, demo_inds):
     demoU = np.reshape(demoU, [1, d1*d2, -1])
 
     # read in demo video
-    if CROP:
-        demo_gifs = [imageio.mimread(demo_dir+'crop_object_'+task_id+'/cond%d.samp0.gif' % demo_ind) for demo_ind in demo_inds]
-    else:
-        demo_gifs = [imageio.mimread(demo_dir+'object_'+task_id+'/cond%d.samp0.gif' % demo_ind) for demo_ind in demo_inds]
+    demo_gifs = [imageio.mimread(demo_dir+'object_'+task_id+'/cond%d.samp0.gif' % demo_ind) for demo_ind in demo_inds]
     print([demo_dir+'object_'+task_id+'/cond%d.samp0.gif' % demo_ind for demo_ind in demo_inds])
     return demoX, demoU, demo_gifs, demo_info
-
 
 def eval_success(path):
       obs = path['observations']
@@ -131,20 +126,22 @@ def eval_success(path):
       return np.sum(dists < 0.025) >= 10 and back_flag
     #   return np.sum(dists < 0.017) >= 10 and back_flag
 
-def main(meta_path, demo_dir, validation=False, save_video=True, lstm=False, num_input_demos=1):
+def main(meta_path, demo_dir, log_dir, validation=False, save_video=True, lstm=False, num_input_demos=1):
     gpu_options = tf.GPUOptions(per_process_gpu_memory_fraction=0.2)
     tf_config = tf.ConfigProto(gpu_options=gpu_options)
-    with tf.Session(config=config) as sess:
+    with tf.Session(config=tf_config) as sess:
         saver = tf.train.import_meta_graph(meta_path)
         saver.restore(sess, meta_path[:-5])
         
-        obsa = tf.get_default_graph().get_tensor_by_name('obsa:0')
-        statea = tf.get_default_graph().get_tensor_by_name('statea:0')
-        actiona = tf.get_default_graph().get_tensor_by_name('actiona:0')
-        obsb = tf.get_default_graph().get_tensor_by_name('obsb:0')
-        stateb = tf.get_default_graph().get_tensor_by_name('stateb:0')
-        output = tf.get_default_graph().get_tensor_by_name('output_action:0')
-        
+        feed_dict = {
+            'obsa': tf.get_default_graph().get_tensor_by_name('obsa:0'),
+            'statea': tf.get_default_graph().get_tensor_by_name('statea:0'),
+            'actiona': tf.get_default_graph().get_tensor_by_name('actiona:0'),
+            'obsb': tf.get_default_graph().get_tensor_by_name('obsb:0'),
+            'stateb': tf.get_default_graph().get_tensor_by_name('stateb:0'),
+            'output': tf.get_default_graph().get_tensor_by_name('output_action:0')   ,  
+        }
+
         scale_file = SCALE_FILE_PATH
         files = glob.glob(os.path.join(demo_dir, '*.pkl'))
         all_ids = [int(f.split('/')[-1][:-4]) for f in files]
@@ -170,11 +167,12 @@ def main(meta_path, demo_dir, validation=False, save_video=True, lstm=False, num
             xml_filepath = find_xml_filepath(demo_info)
             # env = load_env(demo_info)
     
-            policy = TFAgent(model, scale_file, sess)
+            policy = TFAgent(feed_dict, scale_file, sess)
             policy.set_demo(demo_gifs, demoX, demoU)
             returns = []
             gif_dir = log_dir + '/evaluated_gifs/'
-            mkdir_p(gif_dir)
+            gif_path = Path(gif_dir)
+            gif_path.mkdir_p()
             for j in range(1, trials_per_task+1):
                 print(xml_filepath[j])
                 env = load_env(xml_filepath[j])
@@ -182,7 +180,7 @@ def main(meta_path, demo_dir, validation=False, save_video=True, lstm=False, num
                 path = rollout(env, policy, max_path_length=135, env_reset=True,
                                animated=True, speedup=1, always_return_paths=True, 
                                save_video=save_video, video_filename=video_suffix, 
-                               vision=True, lstm=lstm, experiment='push2d')
+                               vision=True, lstm=lstm, is_push_2d=True)
                 env.render(close=True)
                 # val_demoX, val_demoU, val_demo_gifs, val_demo_info = load_demo(str(task_id), demo_dir, [j])
                 # init_act = policy.get_vision_action(np.array(val_demo_gifs)[0, 0, :, :, :3], val_demoX[0, 0, :])[0]
@@ -199,11 +197,10 @@ def main(meta_path, demo_dir, validation=False, save_video=True, lstm=False, num
                 sys.stdout.flush()
                 if len(returns) > trials_per_task:
                     break
-        tf.reset_default_graph()
     success_rate_msg = "Final success rate is %.5f" % (float(num_success)/num_trials)
-    with open('data/log_push2d.txt', 'a') as f:
-        f.write(exp_string + ':\n')
+    with open(log_dir + '/log_push2d.txt', 'a') as f:
+        f.write(meta_path.split('/')[:-5] + ':\n')
         f.write(success_rate_msg + '\n')
 
 if __name__ == '__main__':
-    main(meta_path=META_PATH, demo_dir=DEMO_DIR, validation=True)
+    main(meta_path=META_PATH, demo_dir=DEMO_DIR, log_dir=LOG_DIR, validation=True, save_video=False)
