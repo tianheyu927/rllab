@@ -93,7 +93,7 @@ def find_xml_filepath(demo_info):
     # suffixs = [xml_path[xml_path.index('train_'):] for xml_path in xml_filepath]
     # prefix = XML_PATH
     # xml_filepath = [str(prefix + suffix) for suffix in suffixs]
-
+    import pdb; pdb.set_trace()
     return xml_filepath
     
 def load_env(xml_filepath):

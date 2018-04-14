@@ -319,18 +319,16 @@ def rollout_sliding_window(env, agent, max_path_length=np.inf, animated=False, s
             image_obs, nonimage_obs = env.wrapped_env.wrapped_env.get_current_image_obs()
     demo_gifs, demoX, demoU = demo
     path_length = 0
-    num_windows = 0
     while path_length < max_path_length:
         if path_length % run_steps == 0:
             demo_gifs_window = np.array(demo_gifs)
-            N, T, H, W, C = demo_gif_window.shape
-            demo_gifs_window = demo_gifs_window[:, window_size*num_windows:min(window_size*(num_windows+1), T), :, :, :]
+            N, T, H, W, C = demo_gifs_window.shape
+            demo_gifs_window = demo_gifs_window[:, path_length:min(path_length+window_size, T), :, :, :]
             demoX_window = demoX.reshape(-1, T, demoX.shape[-1])
             demoU_window = demoU.reshape(-1, T, demoU.shape[-1])
-            demoX_window = demoX_window[:, window_size*num_windows:min(window_size*(num_windows+1), T), :]
-            demoU_window = demoU_window[:, window_size*num_windows:min(window_size*(num_windows+1), T), :]
+            demoX_window = demoX_window[:, path_length:min(path_length+window_size, T), :]
+            demoU_window = demoU_window[:, path_length:min(path_length+window_size, T), :]
             agent.set_demo(list(demo_gifs_window), demoX_window, demoU_window)
-            num_windows += 1
         if vision and 'get_vision_action' in dir(agent):
             a, agent_info = agent.get_vision_action(image_obs, nonimage_obs, t=path_length)
         else:

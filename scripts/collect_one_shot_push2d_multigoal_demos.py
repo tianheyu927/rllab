@@ -72,6 +72,7 @@ with tf.Session(config=tf_config) as sess:
         demoX = []
         demoU = []
         videos = []
+        save_xml_files = []
         num_tries = 0
         obj_left = True
         while (len(returns) < demos_per_expert and num_tries < max_num_tries):
@@ -93,17 +94,23 @@ with tf.Session(config=tf_config) as sess:
                 demoX.append(path['nonimage_obs'])
                 demoU.append(path['actions'])
                 videos.append(path['image_obs'])
+                save_xml_files.append(xml_file)
             print(len(returns))
         if len(returns) >= demos_per_expert:
             demoX = np.array(demoX)
             demoU = np.array(demoU)
             with open(output_dir + str(task_i) + '.pkl', 'wb') as f:
                 #pickle.dump({'demoX': demoX, 'demoU': demoU, 'xml':prefix+suffix}, f, protocol=2)
-                pickle.dump({'demoX': demoX, 'demoU': demoU, 'xml':xml_file}, f, protocol=2)
+                pickle.dump({'demoX': demoX, 'demoU': demoU, 'xml':save_xml_files}, f, protocol=2)
             video_dir = output_dir + 'object_' + str(task_i) + '/'
             video_path = Path(video_dir)
             video_path.mkdir_p()
             for demo_index in range(demos_per_expert):
+                cnt = 0
+                while (np.all(videos[demo_index][cnt] == 0.)):
+                    cnt += 1
+                if cnt > 0:
+                    videos[demo_index][:cnt] = videos[demo_index][cnt]
                 save_path = video_dir + 'cond' + str(demo_index) + '.samp0.gif'
                 print('Saving video to %s' % save_path)
                 imageio.mimwrite(save_path, list(videos[demo_index]), format='gif')
