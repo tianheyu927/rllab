@@ -6,6 +6,7 @@ from rllab.envs.mujoco.mujoco_env import MujocoEnv
 from rllab.misc import logger
 from rllab.misc.overrides import overrides
 from PIL import Image
+import pickle
 
 
 def smooth_abs(x, param):
@@ -27,6 +28,9 @@ class PusherEnv2D(MujocoEnv, Serializable):
         super(PusherEnv2D, self).__init__(*args, **kwargs)
         self.frame_skip = 5
         self.dist = []
+        if not hasattr(self, 'qposes'):
+            with open('/home/kevin/rllab/data/qpos.pkl', 'rb') as f:
+                self.qposes = pickle.load(f)
         Serializable.__init__(self, *args, **kwargs)
 
     def get_current_obs(self):
@@ -58,6 +62,26 @@ class PusherEnv2D(MujocoEnv, Serializable):
         #     self.get_body_com("object"),
         #     self.get_body_com("goal"),
         # ])
+        if self.iteration <= 75:
+            pgoal = self.get_body_com("goal")
+            pdistr = self.get_body_com("distractor").copy()
+            ptip = self.get_body_com("distal_4").copy()
+            pobj = self.get_body_com("object").copy()
+            # pdistr[0] = max(pdistr[0], pobj[0]) + 0.2
+            # if ptip[1] >= pdistr[1]:
+            #     pdistr_up[1] += 0.2
+            # else:
+            # pdistr[0] += 0.2
+            # pdistr[1] = pgoal[1]
+            pdistr[:-1] += 0.2
+            return np.concatenate([
+            self.model.data.qpos.flat[:-6],
+            self.model.data.qvel.flat[:-6],
+            self.get_body_com("distal_4"),
+            self.get_body_com("object"),
+            pdistr,
+            self.get_body_com("goal"),
+        ])
         return np.concatenate([
             self.model.data.qpos.flat[:-6],
             self.model.data.qvel.flat[:-6],
@@ -66,7 +90,15 @@ class PusherEnv2D(MujocoEnv, Serializable):
             self.get_body_com("distractor"),
             self.get_body_com("goal"),
         ])
-    
+        # return np.concatenate([
+        #     self.model.data.qpos.flat[:-6],
+        #     self.model.data.qvel.flat[:-6],
+        #     self.get_body_com("distal_4"),
+        #     self.get_body_com("distractor"),
+        #     self.get_body_com("object"),
+        #     self.get_body_com("goal"),
+        # ])
+        
     def get_current_image_obs(self):
         image = self.viewer.get_image()
         pil_image = Image.frombytes('RGB', (image[1], image[2]), image[0])
@@ -131,11 +163,21 @@ class PusherEnv2D(MujocoEnv, Serializable):
         #     # reward_return = - np.linalg.norm(self.init_pos-ptip)
         #     self.dist.append(-reward_dist)
         #     reward = reward_dist + 0.1 * reward_ctrl + 0.5 * reward_near
+        pdistr_up = pdistr.copy()
+        pdistr_up[:-1] += 0.2
+        if self.iteration <= 75:
+            reward_near = - np.linalg.norm(pdistr_up-ptip) #push distractor
+        else:
+            reward_near = - np.linalg.norm(pdistr-ptip) #push distractor
         reward_dist = - np.linalg.norm(pgoal-pobj)
         reward_dist_distr = - np.linalg.norm(pgoal-pdistr)
-        reward_near = - np.linalg.norm(pdistr-ptip)
+        # reward_near = - np.linalg.norm(pobj-ptip) # push object!!!
         # reward_return = - np.linalg.norm(self.init_pos-ptip)
-        reward = reward_dist + reward_dist_distr + 0.1 * reward_ctrl + 0.5 * reward_near
+        # for second policy
+        # reward = reward_dist + reward_dist_distr + 0.1 * reward_ctrl + 0.5 * reward_near
+        # for starting from goal position
+        reward = reward_dist_distr + 0.1 * reward_ctrl + 0.5 * reward_near
+        # reward = reward_dist + 0.1 * reward_ctrl + 0.5 * reward_near
         self.forward_dynamics(action) # TODO - frame skip
         next_obs = self.get_current_obs()
 
@@ -152,9 +194,10 @@ class PusherEnv2D(MujocoEnv, Serializable):
         while True:
             # TODO: seems like x, y are flipped in mujoco-py?
             # object_ = [np.random.uniform(low=-1.1, high=-0.2),
-            #             np.random.uniform(low=-0.1, high=0.4)]
-            object_ = [np.random.uniform(low=-1.1, high=-0.2),
-                        np.random.uniform(low=0., high=0.4)]
+            #             np.random.uniform(low=0., high=0.4)]
+            # for starting from the goal position
+            object_ = [np.random.uniform(low=-1.1, high=-0.8),
+                        np.random.uniform(low=0.0, high=0.4)]
             # goal = [-0.65, -0.4]
             goal = [-0.65, -0.25]
             # goal = [np.random.uniform(low=-1.2, high=-0.8),
@@ -166,54 +209,44 @@ class PusherEnv2D(MujocoEnv, Serializable):
                 #                 np.random.uniform(low=-0.1, high=0.4)]
                 # distractor_ = [np.random.uniform(low=-1.1, high=-0.2),
                 #                 np.random.uniform(low=0., high=0.4)]
-                distractor_ = [np.random.uniform(low=-1.1, high=-0.2),
-                                np.random.uniform(low=0., high=0.4)]
+                # distractor_ = [np.random.uniform(low=-1.1, high=-0.2),
+                #                 np.random.uniform(low=0., high=0.4)]
+                distractor_ = [np.random.uniform(low=-1.1, high=-0.8),
+                                np.random.uniform(low=0.0, high=0.4)]
             if np.linalg.norm(np.array(object_)-np.array(goal)) > 0.3:
                 if self.include_distractors: 
-                    if np.linalg.norm(np.array(object_)[0]-np.array(distractor_)[0]) > 0.65 and \
+                    # if np.linalg.norm(np.array(object_)[0]-np.array(distractor_)[0]) > 0.65 and \
+                    if np.linalg.norm(np.array(object_)[0]-np.array(distractor_)[0]) > 0.2 and \
                         np.linalg.norm(np.array(distractor_)-np.array(goal)) > 0.3 and \
-                        np.linalg.norm(np.array(object_)[0]-np.array(distractor_)[0]) > 0.55 and \
-                        np.linalg.norm(np.array(object_)[1]-np.array(distractor_)[1]) > 0.2 and \
-                        np.array(object_)[0] > np.array(distractor_)[0]: # for the second policy
+                        np.linalg.norm(np.array(object_)[1]-np.array(distractor_)[1]) > 0.2: # and \
+                        # np.array(object_)[0] > np.array(distractor_)[0]: # for the second policy
                         break
                 else:
                     break
+        # object_ = [np.random.uniform(low=-0.4, high=-0.2),
+        #             np.random.uniform(low=-0.1, high=0.1)]
+        # if np.random.random() > 0.5:
+        #     tmp = object_.copy()
+        #     object_ = distractor_.copy()
+        #     distractor_ = tmp
         self.object = np.array(object_)
         # for the second policy!!!
-        self.object = np.array(goal)
+        # self.object = np.array([-0.35, -0.2])
+        # self.object = np.array(goal)
+        # self.object = [np.random.uniform(low=-0.3, high=-0.2),
+        #             np.random.uniform(low=-0.2, high=-0.1)]
         self.goal = np.array(goal)
         if self.include_distractors:
             self.distractor = np.array(distractor_)
         if hasattr(self, "_kwargs") and 'goal' in self._kwargs:
             self.object = np.array(self._kwargs['object'])
             self.goal = np.array(self._kwargs['goal'])
-
-        # rgbatmp = np.copy(self.model.geom_rgba)
-        # geompostemp = np.copy(self.model.geom_pos)
-        # for body in range(len(geompostemp)):
-        #     if 'object' in str(self.model.geom_names[body]):
-        #         pos_x = np.random.uniform(low=-0.9, high=0.9)
-        #         pos_y = np.random.uniform(low=0, high=1.0)
-        #         rgba = self.getcolor()
-        #         isinv = np.random.random()
-        #         if isinv>0.5:
-        #             rgba[-1] = 0.
-        #         rgbatmp[body, :] = rgba
-        #         geompostemp[body, 0] = pos_x
-        #         geompostemp[body, 1] = pos_y
-
-        # if hasattr(self, "_kwargs") and 'geoms' in self._kwargs:
-        #     geoms = self._kwargs['geoms']
-        #     ct = 0
-        #     for body in range(len(geompostemp)):
-        #         if 'object' in str(self.model.geom_names[body]):
-        #             rgbatmp[body, :] = geoms[ct][0]
-        #             geompostemp[body, 0] = geoms[ct][1]
-        #             geompostemp[body, 1] = geoms[ct][2]
-        #             ct += 1
-
-        # self.model.geom_rgba = rgbatmp
-        # self.model.geom_pos = geompostemp
+        
+        #initialize at the goal position
+        if not hasattr(self, 'qposes'):
+            with open('/home/kevin/rllab/data/qpos.pkl', 'rb') as f:
+                self.qposes = pickle.load(f)
+        qpos[:3] = self.qposes[np.random.choice(range(self.qposes.shape[0]))]
         
         if self.include_distractors:
             qpos[-6:-4] = self.distractor

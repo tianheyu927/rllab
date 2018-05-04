@@ -12,13 +12,24 @@ from rllab.sampler.utils import rollout
 import sys
 
 from rllab.envs.mujoco.pusher2d_vision_env import PusherEnvVision2D
+from rllab.envs.mujoco.pusher2d_vision_env_noback import PusherEnvVision2DNoback
 from rllab.envs.normalized_env import normalize
 from sandbox.rocky.tf.envs.base import TfEnv
 
-DEMO_DIR = 'data/push2d_demos/'
-SCALE_FILE_PATH = '/home/kevin/maml_imitation_private/data/scale_and_bias_push2d_pair.pkl'
-META_PATH = '/home/kevin/maml_imitation_private/data/checkpoints/push2d_pair.xavier_init.4_conv.2_strides.16_5x5_filters.3_fc.200_dim.bt_dim_10.mbs_15.ubs_1.meta_lr_0.001.numstep_1.updatelr_0.005.conv_bt.all_fc_bt.fp.two_heads/model_48000.meta'
-LOG_DIR = '/home/kevin/maml_imitation_private/data/checkpoints/push2d_pair.xavier_init.4_conv.2_strides.16_5x5_filters.3_fc.200_dim.bt_dim_10.mbs_15.ubs_1.meta_lr_0.001.numstep_1.updatelr_0.005.conv_bt.all_fc_bt.fp.two_heads'
+DEMO_DIR = 'data/push2d_demos_noback/'
+TEST_DEMO_DIR = 'data/test_push2d_demos_noback/'
+SCALE_FILE_PATH = '/home/kevin/maml_imitation_private/data/scale_and_bias_push2d_noback.pkl'
+META_PATH = '/home/kevin/maml_imitation_private/data/checkpoints/push2d_noback.xavier_init.4_conv.2_strides.20_5x5_filters.3_fc.200_dim.bt_dim_10.mbs_15.ubs_1.meta_lr_0.001.numstep_1.updatelr_0.01.clip_20.conv_bt.all_fc_bt.fp/model_38000.meta'
+LOG_DIR = '/home/kevin/maml_imitation_private/data/checkpoints/push2d_noback.xavier_init.4_conv.2_strides.20_5x5_filters.3_fc.200_dim.bt_dim_10.mbs_15.ubs_1.meta_lr_0.001.numstep_1.updatelr_0.01.clip_20.conv_bt.all_fc_bt.fp'
+MAX_PATH_LENGTH = 120
+
+def str2bool(v):
+    if v.lower() in ('yes', 'true', 't', 'y', '1'):
+        return True
+    elif v.lower() in ('no', 'false', 'f', 'n', '0'):
+        return False
+    else:
+        raise argparse.ArgumentTypeError('Boolean value expected.')
 
 class TFAgent(object):
     def __init__(self, feed_dict, scale_bias_file, sess):
@@ -93,11 +104,14 @@ def find_xml_filepath(demo_info):
     # suffixs = [xml_path[xml_path.index('train_'):] for xml_path in xml_filepath]
     # prefix = XML_PATH
     # xml_filepath = [str(prefix + suffix) for suffix in suffixs]
-    import pdb; pdb.set_trace()
+    # import pdb; pdb.set_trace()
     return xml_filepath
     
-def load_env(xml_filepath):
-    pusher_env = PusherEnvVision2D(**{'xml_file':xml_filepath, 'distractors': True})
+def load_env(xml_filepath, noback=False):
+    if noback:
+        pusher_env = PusherEnvVision2DNoback(**{'xml_file':xml_filepath, 'distractors': True})
+    else:
+        pusher_env = PusherEnvVision2D(**{'xml_file':xml_filepath, 'distractors': True})
     env = TfEnv(normalize(pusher_env))
     return env
 
@@ -125,10 +139,21 @@ def eval_success(path):
       print(dists[-1])
       return np.sum(dists < 0.025) >= 10 and back_flag
     #   return np.sum(dists < 0.017) >= 10 and back_flag
+    
+def eval_success_noback(path, noback=False):
+    obs = path['observations']
+    target = obs[:, -3:-1]
+    # if noback:
+    obj = obs[:, -6:-4]
+    # else:
+    #     obj = obs[:, -9:-7]
+    dists = np.sum((target-obj)**2, 1)  # distances at each timestep
+    print(dists[-1])
+    return np.sum(dists < 0.025) >= 10
 
-def main(meta_path, demo_dir, log_dir, validation=False, save_video=True, lstm=False, num_input_demos=1):
-    gpu_options = tf.GPUOptions(per_process_gpu_memory_fraction=0.2)
-    tf_config = tf.ConfigProto(gpu_options=gpu_options)
+def main(meta_path, demo_dir, log_dir, validation=False, save_video=True, lstm=False, noback=False, num_input_demos=1):
+    tf_config = tf.ConfigProto()
+    tf_config.gpu_options.allow_growth = True
     with tf.Session(config=tf_config) as sess:
         saver = tf.train.import_meta_graph(meta_path)
         saver.restore(sess, meta_path[:-5])
@@ -148,7 +173,7 @@ def main(meta_path, demo_dir, log_dir, validation=False, save_video=True, lstm=F
         all_ids.sort()
         num_success = 0
         num_trials = 0
-        trials_per_task = 5
+        trials_per_task = 3
         
         if validation:
             task_ids = all_ids[-60:]
@@ -156,7 +181,7 @@ def main(meta_path, demo_dir, log_dir, validation=False, save_video=True, lstm=F
             task_ids = all_ids
     
         for task_id in task_ids:
-            demo_inds = [0] # for consistency of comparison
+            demo_inds = [0] #[4] # for consistency of comparison
             if num_input_demos > 1:
                 demo_inds += range(12, 12+int(num_input_demos / 2))
                 demo_inds += range(2, 2+int((num_input_demos-1) / 2))
@@ -173,11 +198,13 @@ def main(meta_path, demo_dir, log_dir, validation=False, save_video=True, lstm=F
             gif_dir = log_dir + '/evaluated_gifs/'
             gif_path = Path(gif_dir)
             gif_path.mkdir_p()
-            for j in range(1, trials_per_task+1):
+            demo_range = range(1, trials_per_task+1) if noback else range(4, 4+trials_per_task+1)
+            for j in demo_range:
+            # for j in range(4, 4+trials_per_task+1):
                 print(xml_filepath[j])
-                env = load_env(xml_filepath[j])
+                env = load_env(xml_filepath[j], noback=noback)
                 video_suffix = gif_dir + str(id) + 'demo_' + str(num_input_demos) + '_' + str(len(returns)) + '.gif'
-                path = rollout(env, policy, max_path_length=135, env_reset=True,
+                path = rollout(env, policy, max_path_length=MAX_PATH_LENGTH, env_reset=True,
                                animated=True, speedup=1, always_return_paths=True, 
                                save_video=save_video, video_filename=video_suffix, 
                                vision=True, lstm=lstm, is_push_2d=True)
@@ -188,7 +215,8 @@ def main(meta_path, demo_dir, log_dir, validation=False, save_video=True, lstm=F
                 # import pdb; pdb.set_trace()
                 # print('Loss is ', curr_loss)
                 num_trials += 1
-                if eval_success(path):
+                # if eval_success(path):
+                if eval_success_noback(path, noback=noback):
                     num_success += 1
                 print('Return: '+str(path['rewards'].sum()))
                 returns.append(path['rewards'].sum())
@@ -203,4 +231,17 @@ def main(meta_path, demo_dir, log_dir, validation=False, save_video=True, lstm=F
         f.write(success_rate_msg + '\n')
 
 if __name__ == '__main__':
-    main(meta_path=META_PATH, demo_dir=DEMO_DIR, log_dir=LOG_DIR, validation=True, save_video=False)
+    import argparse
+    parser = argparse.ArgumentParser()
+    parser.add_argument('--lstm', type=str2bool, default=False)
+    parser.add_argument('--noback', type=str2bool, default=False)
+    parser.add_argument('--validation', type=str2bool, default=True)
+    args = parser.parse_args()
+    lstm = args.lstm
+    noback = args.noback
+    validation = args.validation
+    if validation:
+        demo_dir = DEMO_DIR
+    else:
+        demo_dir = TEST_DEMO_DIR
+    main(meta_path=META_PATH, demo_dir=demo_dir, log_dir=LOG_DIR, validation=validation, lstm=lstm, noback=noback, save_video=False)

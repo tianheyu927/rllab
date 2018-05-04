@@ -31,9 +31,9 @@ def run_task(*_):
         policy=policy,
         baseline=baseline,
         batch_size=100*500,
-        max_path_length=120,#130, #130,
+        max_path_length=150, #120,#130, #130,
         n_itr=1000,
-        discount=0.99,
+        discount=0.99,#0.99,
         step_size=0.01,#0.01,
         force_batch_sampler=True,
         # optimizer=ConjugateGradientOptimizer(hvp_approach=FiniteDifferenceHvp(base_eps=1e-5))
@@ -43,11 +43,11 @@ def run_task(*_):
 run_experiment_lite(
     run_task,
     # Number of parallel workers for sampling
-    n_parallel=4,
+    n_parallel=8,
     # Only keep the snapshot parameters for the last iteration
     snapshot_mode="gap",
     snapshot_gap=50,
-    exp_prefix='trpo_push2d_distractor', #'trpo_push2d',
+    exp_prefix='trpo_push2d_distractor_goal', #'trpo_push2d',
     python_command='python3',
     # Specifies the seed for the experiment. If this is not provided, a random seed
     # will be used

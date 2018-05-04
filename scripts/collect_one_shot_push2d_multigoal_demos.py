@@ -21,9 +21,9 @@ def eval_success(path):
       obs = path['observations']
     #   init = obs[0, -12:-10]
     #   final = obs[-10:, -12:-10]
-      target = obs[:-20, -3:-1]
-      obj = obs[:-20, -6:-4]
-      distractor = obs[:-20, -9:-7]
+      target = obs[:, -3:-1]
+      obj = obs[:, -6:-4]
+      distractor = obs[:, -9:-7]
       dists1 = np.sum((target-obj)**2, 1)  # distances at each timestep
       dists2 = np.sum((target-distractor)**2, 1)  # distances at each timestep
       return np.sum(dists1 < 0.025) >= 5 and np.sum(dists2 < 0.025) >= 5
@@ -33,8 +33,10 @@ def eval_success(path):
 #files = glob.glob('data/s3/init5-push-experts/*/*itr_300*')
 # files = '/home/kevin/rllab/data/local/trpo-push2d/trpo_push2d_2018_03_17_02_02_30_0001/itr_950.pkl'
 # file1 = '/home/kevin/rllab/data/local/trpo-push2d/trpo_push2d_2018_03_19_21_58_18_0001/itr_950.pkl'
-file1 = '/home/kevin/rllab/data/local/trpo-push2d/trpo_push2d_2018_04_06_20_04_47_0001/itr_650.pkl'
-file2 = '/home/kevin/rllab/data/local/trpo-push2d-distractor/trpo_push2d_distractor_2018_04_13_12_53_15_0001/itr_300.pkl'
+# file1 = '/home/kevin/rllab/data/local/trpo-push2d/trpo_push2d_2018_04_06_20_04_47_0001/itr_650.pkl'
+# file2 = '/home/kevin/rllab/data/local/trpo-push2d-distractor/trpo_push2d_distractor_2018_04_13_12_53_15_0001/itr_300.pkl'
+file1 = '/home/kevin/rllab/data/local/trpo-push2d-noback/trpo_push2d_noback_2018_04_18_20_29_33_0001/itr_250.pkl'
+file2 = '/home/kevin/rllab/data/local/trpo-push2d-distractor-goal/trpo_push2d_distractor_goal_2018_04_22_15_29_22_0001/itr_650.pkl'
 xmls = natsorted(glob.glob('/home/kevin/rllab/vendor/mujoco_models/pusher2d_multigoal_xmls/*'))
 demos_per_expert = 8 #8
 #output_dir = 'data/expert_demos/'
@@ -50,7 +52,8 @@ filter_thresh = -55
 joint_thresh=0.7
 max_num_tries=24 #30 #12
 
-output_dir = 'data/test_push2d_multigoal_demos/'
+# output_dir = 'data/test_push2d_multigoal_demos_noback/'
+output_dir = 'data/test_push2d_multigoal_demos_noback_shorter/'
 output_dir = Path(output_dir)
 output_dir.mkdir_p()
 
@@ -82,7 +85,8 @@ with tf.Session(config=tf_config) as sess:
             env = TfEnv(normalize(pusher_env))
             num_tries += 1
             # path = rollout(env, policy, max_path_length=110, speedup=1,
-            path = rollout_two_policy(env, policy1, policy2, path_length1=135, max_path_length=255, speedup=1,
+            # path = rollout_two_policy(env, policy1, policy2, path_length1=135, max_path_length=255, speedup=1,
+            path = rollout_two_policy(env, policy1, policy2, path_length1=80, max_path_length=200, speedup=1,
                      animated=True, always_return_paths=True, save_video=False, vision=True)
             # close the window after rollout
             env.render(close=True)

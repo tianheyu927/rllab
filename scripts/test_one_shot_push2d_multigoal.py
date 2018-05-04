@@ -16,9 +16,12 @@ from rllab.envs.mujoco.pusher2d_vision_env import PusherEnvVision2D
 from rllab.envs.normalized_env import normalize
 from sandbox.rocky.tf.envs.base import TfEnv
 
-DEMO_DIR = 'data/test_push2d_multigoal_demos/'
-SCALE_FILE_PATH = '/home/kevin/maml_imitation_private/data/scale_and_bias_push2d_pair.pkl'
-META_PATH = '/home/kevin/maml_imitation_private/data/checkpoints/push2d_pair.xavier_init.4_conv.2_strides.16_5x5_filters.3_fc.200_dim.bt_dim_10.mbs_15.ubs_1.meta_lr_0.001.numstep_1.updatelr_0.005.conv_bt.all_fc_bt.fp.two_heads/model_48000.meta'
+# DEMO_DIR = 'data/test_push2d_multigoal_demos/'
+# SCALE_FILE_PATH = '/home/kevin/maml_imitation_private/data/scale_and_bias_push2d_pair.pkl'
+# META_PATH = '/home/kevin/maml_imitation_private/data/checkpoints/push2d_pair.xavier_init.4_conv.2_strides.16_5x5_filters.3_fc.200_dim.bt_dim_10.mbs_15.ubs_1.meta_lr_0.001.numstep_1.updatelr_0.005.conv_bt.all_fc_bt.fp.two_heads/model_48000.meta'
+DEMO_DIR = 'data/test_push2d_multigoal_demos_noback_shorter/'
+SCALE_FILE_PATH = '/home/kevin/maml_imitation_private/data/scale_and_bias_push2d_noback.pkl'
+META_PATH = '/home/kevin/maml_imitation_private/data/checkpoints/push2d_noback.xavier_init.4_conv.2_strides.20_5x5_filters.3_fc.200_dim.bt_dim_10.mbs_15.ubs_1.meta_lr_0.001.numstep_1.updatelr_0.01.clip_20.conv_bt.all_fc_bt.fp/model_38000.meta'
 LOG_DIR = '/home/kevin/maml_imitation_private/logs/'
 
 class TFAgent(object):
@@ -119,9 +122,9 @@ def eval_success(path):
       obs = path['observations']
     #   init = obs[0, -12:-10]
     #   final = obs[-10:, -12:-10]
-      target = obs[:-20, -3:-1]
-      obj = obs[:-20, -6:-4]
-      distractor = obs[:-20, -9:-7]
+      target = obs[:, -3:-1]
+      obj = obs[:, -6:-4]
+      distractor = obs[:, -9:-7]
       dists1 = np.sum((target-obj)**2, 1)  # distances at each timestep
       dists2 = np.sum((target-distractor)**2, 1)  # distances at each timestep
       return np.sum(dists1 < 0.025) >= 5 and np.sum(dists2 < 0.025) >= 5

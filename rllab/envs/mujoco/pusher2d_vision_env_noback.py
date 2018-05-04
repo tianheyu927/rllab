@@ -13,7 +13,7 @@ def smooth_abs(x, param):
     return np.sqrt(np.square(x) + np.square(param)) - param
 
 
-class PusherEnvVision2D(MujocoEnv, Serializable):
+class PusherEnvVision2DNoback(MujocoEnv, Serializable):
 
     FILE = '3link_gripper_push_2d.xml'
 
@@ -25,7 +25,7 @@ class PusherEnvVision2D(MujocoEnv, Serializable):
             self.include_distractors = kwargs['distractors']
         else:
             self.include_distractors = False
-        super(PusherEnvVision2D, self).__init__(*args, **kwargs)
+        super(PusherEnvVision2DNoback, self).__init__(*args, **kwargs)
         self.frame_skip = 5
         self.dist = []
         Serializable.__init__(self, *args, **kwargs)
@@ -85,16 +85,8 @@ class PusherEnvVision2D(MujocoEnv, Serializable):
         #     self.get_body_com("distractor"),
         #     self.get_body_com("goal"),
         # ])
-        if self.iteration >= 80 and self.iteration <= 155: #75:
-        # if self.iteration <= 75:
-            if self.iteration == 80:
-                qpos = self.model.data.qpos.flat.copy()
-                qpos[-4:-2] = np.array([10.0, 10.0])
-                setattr(self.model.data, 'qpos', qpos)
-                self.model._compute_subtree()
-                self.model.forward()
-                self.current_com = self.model.data.com_subtree[0]
-                self.dcom = np.zeros_like(self.current_com)
+        # if self.iteration >= 120 and self.iteration <= 195: #75:
+        if self.iteration <= 75:
             pgoal = self.get_body_com("goal")
             pdistr = self.get_body_com("distractor").copy()
             pobj = self.get_body_com("object")
@@ -105,47 +97,31 @@ class PusherEnvVision2D(MujocoEnv, Serializable):
             # else:
             # pdistr[1] = pgoal[1]
             pdistr[:-1] += 0.2
-            # return np.concatenate([
-            # self.model.data.qpos.flat[:-6],
-            # self.model.data.qvel.flat[:-6],
-            # self.get_body_com("distal_4"),
-            # self.get_body_com("object"),
-            # pdistr,
-            # self.get_body_com("goal"),
-            # ])
             return np.concatenate([
             self.model.data.qpos.flat[:-6],
             self.model.data.qvel.flat[:-6],
             self.get_body_com("distal_4"),
-            self.get_body_com("goal"),
+            self.get_body_com("object"),
             pdistr,
             self.get_body_com("goal"),
-            ])
-        elif self.iteration > 155:
-            # return np.concatenate([
-            #     self.model.data.qpos.flat[:-6],
-            #     self.model.data.qvel.flat[:-6],
-            #     self.get_body_com("distal_4"),
-            #     self.get_body_com("object"),
-            #     self.get_body_com("distractor"),
-            #     self.get_body_com("goal"),
-            # ])
-            return np.concatenate([
-                self.model.data.qpos.flat[:-6],
-                self.model.data.qvel.flat[:-6],
-                self.get_body_com("distal_4"),
-                self.get_body_com("goal"),
-                self.get_body_com("distractor"),
-                self.get_body_com("goal"),
-            ])
+        ])
+        # elif self.iteration > 195:
         return np.concatenate([
             self.model.data.qpos.flat[:-6],
             self.model.data.qvel.flat[:-6],
             self.get_body_com("distal_4"),
-            self.get_body_com("distractor"),
             self.get_body_com("object"),
+            self.get_body_com("distractor"),
             self.get_body_com("goal"),
         ])
+        # return np.concatenate([
+        #     self.model.data.qpos.flat[:-6],
+        #     self.model.data.qvel.flat[:-6],
+        #     self.get_body_com("distal_4"),
+        #     self.get_body_com("distractor"),
+        #     self.get_body_com("object"),
+        #     self.get_body_com("goal"),
+        # ])
     
     def get_current_obs_true(self):
         return np.concatenate([
@@ -252,20 +228,20 @@ class PusherEnvVision2D(MujocoEnv, Serializable):
     def reset(self, init_state=None):
         self.iteration = 0
         self.init_pos = self.get_body_com("distal_4")
-        # qpos = np.squeeze(self.init_qpos.copy())
-        # if not hasattr(self, 'qposes'):
-        #     with open('/home/kevin/rllab/data/qpos.pkl', 'rb') as f:
-        #         self.qposes = pickle.load(f)
-        # qpos[:3] = self.qposes[np.random.choice(range(self.qposes.shape[0]))]
-        # qvel = np.squeeze(self.init_qvel.copy())
-        # qvel[-4:] = 0
-        # if self.include_distractors:
-        #     qvel[-6:-4] = 0
-        # setattr(self.model.data, 'qpos', qpos)
-        # setattr(self.model.data, 'qvel', qvel)
-        # self.model.data.qvel = qvel
-        # self.model._compute_subtree()
-        self.reset_mujoco(init_state)
+        qpos = np.squeeze(self.init_qpos.copy())
+        if not hasattr(self, 'qposes'):
+            with open('/home/kevin/rllab/data/qpos.pkl', 'rb') as f:
+                self.qposes = pickle.load(f)
+        qpos[:3] = self.qposes[np.random.choice(range(self.qposes.shape[0]))]
+        qvel = np.squeeze(self.init_qvel.copy())
+        qvel[-4:] = 0
+        if self.include_distractors:
+            qvel[-6:-4] = 0
+        setattr(self.model.data, 'qpos', qpos)
+        setattr(self.model.data, 'qvel', qvel)
+        self.model.data.qvel = qvel
+        self.model._compute_subtree()
+        # self.reset_mujoco(init_state)
         self.model.forward()
         self.current_com = self.model.data.com_subtree[0]
         self.dcom = np.zeros_like(self.current_com)
