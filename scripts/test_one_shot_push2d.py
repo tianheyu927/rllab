@@ -209,11 +209,6 @@ def main(meta_path, demo_dir, log_dir, validation=False, save_video=True, lstm=F
                                save_video=save_video, video_filename=video_suffix, 
                                vision=True, lstm=lstm, is_push_2d=True)
                 env.render(close=True)
-                # val_demoX, val_demoU, val_demo_gifs, val_demo_info = load_demo(str(task_id), demo_dir, [j])
-                # init_act = policy.get_vision_action(np.array(val_demo_gifs)[0, 0, :, :, :3], val_demoX[0, 0, :])[0]
-                # curr_loss = np.mean((val_demoU*50.0 - path['actions']*50.0)**2)
-                # import pdb; pdb.set_trace()
-                # print('Loss is ', curr_loss)
                 num_trials += 1
                 # if eval_success(path):
                 if eval_success_noback(path, noback=noback):
