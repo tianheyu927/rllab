@@ -8,6 +8,7 @@ import numpy as np
 import random
 import tensorflow as tf
 from PIL import Image
+import matplotlib.pyplot as plt
 from rllab.sampler.utils import rollout_sliding_window
 import sys
 import argparse
@@ -90,6 +91,64 @@ class TFAgent(object):
         if T > 1:
             action = np.squeeze(action)[t]
         return action, dict()
+        
+    def get_fp(self, image, obs, t=-1, is_demo=True):
+        assert 'fp' in self.feed_dict
+        T = 1
+        if len(image.shape) == 5:
+            try:
+                N, T, H, W, C = image.shape
+            except:
+                import pdb; pdb.set_trace()
+            image = np.reshape(image, [N*T, H, W, C])
+            image = np.array(image)[:,:,:,:3].transpose(0,3,2,1).astype('float32') / 255.0
+            image = image.reshape(1, N*T, -1)
+        elif len(image.shape) == 3:
+            image = np.expand_dims(image, 0).transpose(0,3,2,1).astype('float32') / 255.0
+            image = image.reshape((1, 1, -1))
+    
+            obs = obs.reshape((1,1,12))
+        else:
+            T, _, _, _ = image.shape
+            image = np.expand_dims(image, 0).transpose(0,1,4,3,2).astype('float32') / 255.0
+            image = image.reshape((1, T, -1))
+    
+            obs = obs.reshape((1,T,12))
+
+        # fp = self.sess.run(self.feed_dict['fp'],
+        #                   {self.feed_dict['statea']: self.demoX.dot(self.scale) + self.bias,
+        #                   self.feed_dict['obsa']: self.demoVideo,
+        #                   self.feed_dict['actiona']: self.demoU,
+        #                   self.feed_dict['stateb']: obs.dot(self.scale) + self.bias,
+        #                   self.feed_dict['obsb']: image})
+        fp = self.sess.run(self.feed_dict['fp'],
+                           {self.feed_dict['obsa']: image,
+                            self.feed_dict['statea']: obs.dot(self.scale) + self.bias})
+        if T > 1 and not is_demo:
+            fp = np.squeeze(fp)[t]
+        return fp, dict()
+        
+def downsample_demo(demoVideo, demoX, demoU):
+    demoVideo = np.array(demoVideo)
+    N, T, H, W, C = demoVideo.shape
+    demoX = demoX.reshape(N, T, -1)
+    demoU = demoU.reshape(N, T, -1)
+    demoVideo = demoVideo[:, ::2, :, :, :]
+    demoX = demoX[:, ::2, :]
+    demoU = demoU[:, ::2, :]
+    demoVideo = list(demoVideo)
+    return demoVideo, demoX, demoU
+
+def upsample_demo(demoVideo, demoX, demoU):
+    demoVideo = np.array(demoVideo)
+    N, T, H, W, C = demoVideo.shape
+    demoX = demoX.reshape(N, T, -1)
+    demoU = demoU.reshape(N, T, -1)
+    demoVideo = np.repeat(demoVideo, 2, axis=1)
+    demoX = np.repeat(demoX, 2, axis=1)
+    demoU = np.repeat(demoU, 2, axis=1)
+    demoVideo = list(demoVideo)
+    return demoVideo, demoX, demoU
 
 def find_xml_filepath(demo_info):
     xml_filepath = demo_info['xml']
@@ -130,7 +189,8 @@ def eval_success(path):
       return np.sum(dists1 < 0.025) >= 5 and np.sum(dists2 < 0.025) >= 5
 
 def main(meta_path, demo_dir, log_dir, test=True, window_size=135,
-        run_steps=135, save_video=True, lstm=False, num_input_demos=1):
+        run_steps=135, save_video=True, lstm=False, num_input_demos=1,
+        get_fp=False, downsample=False, upsample=False, pred_phase=False):
     model_dir = meta_path[:meta_path.index('model')]
     tf_config = tf.ConfigProto()
     tf_config.gpu_options.allow_growth = True
@@ -144,8 +204,12 @@ def main(meta_path, demo_dir, log_dir, test=True, window_size=135,
             'actiona': tf.get_default_graph().get_tensor_by_name('actiona:0'),
             'obsb': tf.get_default_graph().get_tensor_by_name('obsb:0'),
             'stateb': tf.get_default_graph().get_tensor_by_name('stateb:0'),
-            'output': tf.get_default_graph().get_tensor_by_name('output_action:0')   ,  
+            'output': tf.get_default_graph().get_tensor_by_name('output_action:0'),  
         }
+        
+        if get_fp:
+            # feed_dict.update({'fp': tf.get_default_graph().get_tensor_by_name('fp_b:0')})
+            feed_dict.update({'fp': tf.get_default_graph().get_tensor_by_name('fp_a:0')})
 
         scale_file = SCALE_FILE_PATH
         files = glob.glob(os.path.join(demo_dir, '*.pkl'))
@@ -169,6 +233,10 @@ def main(meta_path, demo_dir, log_dir, test=True, window_size=135,
             demoX, demoU, demo_gifs, demo_info = load_demo(str(task_id), demo_dir, demo_inds)
             demo_gifs_arr = np.array(demo_gifs)
             N, T, H, W, C = demo_gifs_arr.shape
+            if downsample:
+                demo_gifs, demoX, demoU =  downsample_demo(demo_gifs, demoX, demoU)
+            elif upsample:
+                demo_gifs, demoX, demoU =  upsample_demo(demo_gifs, demoX, demoU)
             # demo_gifs_arr = np.concatenate((demo_gifs_arr[:, :80, :, :, :], demo_gifs_arr[:, 135:, :, :, :]), axis=1)
             # demo_gifs = list(demo_gifs_arr)
             # demoX = demoX.reshape(-1, T, demoX.shape[-1])
@@ -196,7 +264,8 @@ def main(meta_path, demo_dir, log_dir, test=True, window_size=135,
                                                animated=True, speedup=1, always_return_paths=True, 
                                                save_video=save_video, video_filename=video_suffix, 
                                                vision=True, lstm=lstm, is_push_2d=True, demo=demo_data,
-                                               window_size=window_size, run_steps=run_steps)
+                                               window_size=window_size, run_steps=run_steps, get_fp=get_fp,
+                                               pred_phase=pred_phase)
                 env.render(close=True)
                 # val_demoX, val_demoU, val_demo_gifs, val_demo_info = load_demo(str(task_id), demo_dir, [j])
                 # init_act = policy.get_vision_action(np.array(val_demo_gifs)[0, 0, :, :, :3], val_demoX[0, 0, :])[0]
@@ -210,6 +279,27 @@ def main(meta_path, demo_dir, log_dir, test=True, window_size=135,
                 returns.append(path['rewards'].sum())
                 print('Average Return so far: ' + str(np.mean(returns)))
                 print('Success Rate so far: ' + str(float(num_success)/num_trials))
+                if get_fp:
+                    # demo_fp = np.squeeze(policy.get_fp(None, None, is_demo=True)[0])
+                    demo_fp = np.squeeze(policy.get_fp(np.array(demo_gifs), demoX, is_demo=True)[0])
+                    fps = path['fps']
+                    L = fps.shape[0]
+                    # for t in range(L // 10):
+                    #     fp_similarity = np.sum(demo_fp*fps[10*t], axis=1)
+                    #     plt.figure()
+                    #     plt.plot(range(demo_fp.shape[0]), fp_similarity)
+                    #     plt.xlabel('demo time steps')
+                    #     plt.ylabel('feature similarity')
+                    #     plt.title('feature similarity between obs and demo at time %d' % (10*t))
+                    #     print('Saving fp_%d.png' % (10*t))
+                    #     plt.savefig('fp_%d.png' % (10*t))
+                    fp_similarity_idx = np.array([np.argmax(np.sum(demo_fp*fps[t], axis=1)) for t in range(L)])
+                    plt.plot(range(demo_fp.shape[0]), fp_similarity_idx)
+                    plt.xlabel('real time steps')
+                    plt.ylabel('most similar frame in the demo')
+                    print('Saving fp_idx_corr.png')
+                    plt.savefig('fp_idx_corr.png')
+                    import pdb; pdb.set_trace()
                 sys.stdout.flush()
                 if len(returns) > trials_per_task:
                     break
@@ -222,17 +312,29 @@ if __name__ == '__main__':
     parser = argparse.ArgumentParser()
     parser.add_argument('--window_size', type=int, default=135)
     parser.add_argument('--run_steps', type=int, default=135)
-    parser.add_argument('--test', type=bool, default=True)
-    parser.add_argument('--save_video', type=bool, default=False)
+    parser.add_argument('--test', action='store_false')
+    parser.add_argument('--save_video', action='store_true')
+    parser.add_argument('--get_fp', action='store_true')
+    parser.add_argument('--downsample', action='store_true')
+    parser.add_argument('--upsample', action='store_true')
+    parser.add_argument('--pred_phase', action='store_true')
     args = parser.parse_args()
     window_size = args.window_size
     run_steps = args.run_steps
     test = args.test
     save_video = args.save_video
+    get_fp = args.get_fp
+    downsample = args.downsample
+    upsample = args.upsample
+    pred_phase = args.pred_phase
     main(meta_path=META_PATH, 
         demo_dir=DEMO_DIR,
         log_dir=LOG_DIR, 
         test=test, 
         window_size=window_size,
         run_steps=run_steps,
-        save_video=save_video)
+        save_video=save_video,
+        get_fp=get_fp,
+        downsample=downsample,
+        upsample=upsample,
+        pred_phase=pred_phase)
