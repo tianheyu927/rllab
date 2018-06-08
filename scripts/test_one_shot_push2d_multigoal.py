@@ -20,9 +20,12 @@ from sandbox.rocky.tf.envs.base import TfEnv
 # DEMO_DIR = 'data/test_push2d_multigoal_demos/'
 # SCALE_FILE_PATH = '/home/kevin/maml_imitation_private/data/scale_and_bias_push2d_pair.pkl'
 # META_PATH = '/home/kevin/maml_imitation_private/data/checkpoints/push2d_pair.xavier_init.4_conv.2_strides.16_5x5_filters.3_fc.200_dim.bt_dim_10.mbs_15.ubs_1.meta_lr_0.001.numstep_1.updatelr_0.005.conv_bt.all_fc_bt.fp.two_heads/model_48000.meta'
-DEMO_DIR = 'data/test_push2d_multigoal_demos_noback_shorter/'
-SCALE_FILE_PATH = '/home/kevin/maml_imitation_private/data/scale_and_bias_push2d_noback.pkl'
-META_PATH = '/home/kevin/maml_imitation_private/data/checkpoints/push2d_noback.xavier_init.4_conv.2_strides.20_5x5_filters.3_fc.200_dim.bt_dim_10.mbs_15.ubs_1.meta_lr_0.001.numstep_1.updatelr_0.01.clip_20.conv_bt.all_fc_bt.fp/model_38000.meta'
+# DEMO_DIR = 'data/test_push2d_multigoal_demos_noback_shorter/'
+# SCALE_FILE_PATH = '/home/kevin/maml_imitation_private/data/scale_and_bias_push2d_noback.pkl'
+# META_PATH = '/home/kevin/maml_imitation_private/data/checkpoints/push2d_noback.xavier_init.4_conv.2_strides.20_5x5_filters.3_fc.200_dim.bt_dim_10.mbs_15.ubs_1.meta_lr_0.001.numstep_1.updatelr_0.01.clip_20.conv_bt.all_fc_bt.fp/model_38000.meta'
+DEMO_DIR = 'data/test_push2d_multigoal_demos_noback_shorter_time/'
+SCALE_FILE_PATH = '/home/kevin/maml_imitation_private/data/scale_and_bias_push2d_noback_time.pkl'
+META_PATH = '/home/kevin/maml_imitation_private/data/checkpoints/push2d_noback_time.xavier_init.4_conv.2_strides.20_5x5_filters.3_fc.200_dim.bt_dim_10.mbs_15.ubs_1.meta_lr_0.001.numstep_1.updatelr_0.01.clip_20.conv_bt.all_fc_bt.fp/model_37000.meta'
 LOG_DIR = '/home/kevin/maml_imitation_private/logs/'
 
 class TFAgent(object):
@@ -142,11 +145,19 @@ def downsample_demo(demoVideo, demoX, demoU):
 def upsample_demo(demoVideo, demoX, demoU):
     demoVideo = np.array(demoVideo)
     N, T, H, W, C = demoVideo.shape
+    # demoX = demoX.reshape(N, T, -1)
+    # demoU = demoU.reshape(N, T, -1)
+    # demoVideo = np.repeat(demoVideo, 2, axis=1)
+    # demoX = np.repeat(demoX, 2, axis=1)
+    # demoU = np.repeat(demoU, 2, axis=1)
     demoX = demoX.reshape(N, T, -1)
     demoU = demoU.reshape(N, T, -1)
-    demoVideo = np.repeat(demoVideo, 2, axis=1)
-    demoX = np.repeat(demoX, 2, axis=1)
-    demoU = np.repeat(demoU, 2, axis=1)
+    demoVideo_end = np.repeat(demoVideo[:, 40:80, :], 2, axis=1)
+    demoX_end = np.repeat(demoX[:, 40:80, :], 2, axis=1)
+    demoU_end = np.repeat(demoU[:, 40:80, :], 2, axis=1)
+    demoVideo = np.concatenate((demoVideo[:, :40, :], demoVideo_end, demoVideo[:, 80:, :]), axis=1)
+    demoX = np.concatenate((demoX[:, :40, :], demoX_end, demoX[:, 80:, :]), axis=1)
+    demoU = np.concatenate((demoU[:, :40, :], demoU_end, demoU[:, 80:, :]), axis=1)
     demoVideo = list(demoVideo)
     return demoVideo, demoX, demoU
 
@@ -237,6 +248,7 @@ def main(meta_path, demo_dir, log_dir, test=True, window_size=135,
                 demo_gifs, demoX, demoU =  downsample_demo(demo_gifs, demoX, demoU)
             elif upsample:
                 demo_gifs, demoX, demoU =  upsample_demo(demo_gifs, demoX, demoU)
+                T = 240 # for testing only
             # demo_gifs_arr = np.concatenate((demo_gifs_arr[:, :80, :, :, :], demo_gifs_arr[:, 135:, :, :, :]), axis=1)
             # demo_gifs = list(demo_gifs_arr)
             # demoX = demoX.reshape(-1, T, demoX.shape[-1])

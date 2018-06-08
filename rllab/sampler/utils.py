@@ -340,21 +340,22 @@ def rollout_sliding_window(env, agent, max_path_length=np.inf, animated=False, s
                 demoU_window = demoU_window[:, min(path_length, T-window_size):min(path_length+window_size, T), :]
             else:
                 # Advance the sliding window. 0.96 is a tunable parameter
-                if phase >= 0.96:
+                if phase >= 0.5:
                     slide_cnt += 1
-                print('Sliding window range is', [min(slide_cnt*window_size, T-window_size), min(slide_cnt*window_size, T)])
+                print('Time step %d: Phase is %.3f' % (path_length, phase))
+                print('Sliding window range is', [min(slide_cnt*window_size, T-window_size), min((slide_cnt+1)*window_size, T)])
                 # stop sliding the window once it reaches the end of trajectory
-                demo_gifs_window = demo_gifs_window[:, min(slide_cnt*window_size, T-window_size):min(slide_cnt*window_size, T), :, :, :]
-                demoX_window = demoX_window[:, min(slide_cnt*window_size, T-window_size):min(slide_cnt*window_size, :]
-                demoU_window = demoU_window[:, min(slide_cnt*window_size, T-window_size):min(slide_cnt*window_size, :]
+                demo_gifs_window = demo_gifs_window[:, min(slide_cnt*window_size, T-window_size):min((slide_cnt+1)*window_size, T), :, :, :]
+                demoX_window = demoX_window[:, min(slide_cnt*window_size, T-window_size):min((slide_cnt+1)*window_size, T) :]
+                demoU_window = demoU_window[:, min(slide_cnt*window_size, T-window_size):min((slide_cnt+1)*window_size, T) :]
             agent.set_demo(list(demo_gifs_window), demoX_window, demoU_window)
         if vision and 'get_vision_action' in dir(agent):
             a, agent_info = agent.get_vision_action(image_obs, nonimage_obs, t=path_length)
         else:
             a, agent_info = agent.get_action(o)
         if pred_phase:
-            phase = a[-1]
-            a = a[:-1]
+            phase = np.squeeze(a[:,:,-1])
+            a = a[:,:,:-1]
         
         if noise > 0:
             a += noise*np.random.randn(*a.shape)
