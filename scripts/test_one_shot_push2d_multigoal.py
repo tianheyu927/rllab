@@ -330,6 +330,7 @@ if __name__ == '__main__':
     parser.add_argument('--downsample', action='store_true')
     parser.add_argument('--upsample', action='store_true')
     parser.add_argument('--pred_phase', action='store_true')
+    parser.add_argument('--pred_demo_phase', action='store_true')
     args = parser.parse_args()
     window_size = args.window_size
     run_steps = args.run_steps

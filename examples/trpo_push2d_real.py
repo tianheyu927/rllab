@@ -6,7 +6,7 @@ from sandbox.rocky.tf.optimizers.conjugate_gradient_optimizer import FiniteDiffe
 from sandbox.rocky.tf.policies.gaussian_mlp_policy import GaussianMLPPolicy
 from sandbox.rocky.tf.envs.base import TfEnv
 from rllab.misc.instrument import stub, run_experiment_lite
-from rllab.envs.mujoco.pusher2d_env import PusherEnv2D
+from rllab.envs.mujoco.pusher2d_env_real import PusherEnv2DReal
 
 #from gym.envs.mujoco.pusher import PusherEnv
 from rllab.envs.gym_env import GymEnv
@@ -14,10 +14,10 @@ from rllab.envs.gym_env import GymEnv
 def run_task(*_):
 
     # env = TfEnv(normalize(GymEnv("Pusher-v0", force_reset=True, record_video=False)))
-    env = TfEnv(normalize(PusherEnv2D(**{'distractors': True})))
+    env = TfEnv(normalize(PusherEnv2DReal(**{'distractors': True})))
     policy = GaussianMLPPolicy(
-        # name="policy",
-        name="policy_new",
+        name="policy",
+        # name="policy_new",
         env_spec=env.spec,
         # The neural network policy should have two hidden layers, each with 32 hidden units.
         hidden_sizes=(128, 128)
@@ -31,7 +31,7 @@ def run_task(*_):
         policy=policy,
         baseline=baseline,
         batch_size=100*500,
-        max_path_length=150, #120,#130, #130,
+        max_path_length=120, #150, #120,#130, #130,
         n_itr=1000,
         discount=0.99,#0.99,
         step_size=0.01,#0.01,
@@ -48,7 +48,7 @@ run_experiment_lite(
     snapshot_mode="gap",
     snapshot_gap=50,
     # exp_prefix='trpo_push2d_distractor_goal', #'trpo_push2d',
-    exp_prefix='trpo_push2d_distractor_goal', #'trpo_push2d',
+    exp_prefix='trpo_push2d_real_outer', #'trpo_push2d_real_inner', #'trpo_push2d',
     python_command='python3',
     # Specifies the seed for the experiment. If this is not provided, a random seed
     # will be used

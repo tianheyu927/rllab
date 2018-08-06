@@ -13,9 +13,9 @@ def smooth_abs(x, param):
     return np.sqrt(np.square(x) + np.square(param)) - param
 
 
-class PusherEnvVision2D(MujocoEnv, Serializable):
+class PusherEnvVision2DReal(MujocoEnv, Serializable):
 
-    FILE = '3link_gripper_push_2d.xml'
+    FILE = '3link_gripper_push_2d_real.xml'
 
     def __init__(self, *args, **kwargs):
         self.frame_skip = 5
@@ -25,7 +25,7 @@ class PusherEnvVision2D(MujocoEnv, Serializable):
             self.include_distractors = kwargs['distractors']
         else:
             self.include_distractors = False
-        super(PusherEnvVision2D, self).__init__(*args, **kwargs)
+        super(PusherEnvVision2DReal, self).__init__(*args, **kwargs)
         self.frame_skip = 5
         self.dist = []
         Serializable.__init__(self, *args, **kwargs)
@@ -39,7 +39,7 @@ class PusherEnvVision2D(MujocoEnv, Serializable):
         rotation_angle = 0
         cam_dist = 2 #4
         # cam_pos = np.array([0, 0, 0, cam_dist, -90, rotation_angle])
-        cam_pos = np.array([0.2, -0.4, 0, cam_dist, -90, rotation_angle])
+        cam_pos = np.array([0.2, -0.4, 0, cam_dist, -60, rotation_angle])
         for i in range(3):
             viewer.cam.lookat[i] = cam_pos[i]
         viewer.cam.distance = cam_pos[3]
@@ -48,96 +48,59 @@ class PusherEnvVision2D(MujocoEnv, Serializable):
         viewer.cam.trackbodyid=-1
 
     def get_current_obs(self):
-        # if self.iteration >= 100 and self.iteration < 130:#130:
-        # if self.iteration >= 100 and self.iteration < 130:#130:
+        # qpos = np.squeeze(self.init_qpos.copy())
+        # if np.linalg.norm(self.get_body_com("object")[:-1] - self.get_body_com("goal")[:-1]) <= 0.03:
+        #     qpos[-4:-2] = np.array([10.0, 10.0])
+        #     setattr(self.model.data, 'qpos', qpos)
+        #     self.model._compute_subtree()
+        #     self.model.forward()
+        #     self.current_com = self.model.data.com_subtree[0]
+        #     self.dcom = np.zeros_like(self.current_com)
+        # if self.iteration >= 80 and self.iteration <= 155: #75:
+        # # if self.iteration <= 75:
+        #     pgoal = self.get_body_com("goal")
+        #     pdistr = self.get_body_com("distractor").copy()
+        #     pobj = self.get_body_com("object")
+        #     ptip = self.get_body_com("distal_4").copy()
+        #     # pdistr[0] = max(pdistr[0], pobj[0]) + 0.2
+        #     # if ptip[1] >= pdistr[1]:
+        #     #     pdistr_up[1] += 0.2
+        #     # else:
+        #     # pdistr[1] = pgoal[1]
+        #     pdistr[:-1] += 0.2
+        #     # return np.concatenate([
+        #     # self.model.data.qpos.flat[:-6],
+        #     # self.model.data.qvel.flat[:-6],
+        #     # self.get_body_com("distal_4"),
+        #     # self.get_body_com("object"),
+        #     # pdistr,
+        #     # self.get_body_com("goal"),
+        #     # ])
+        #     return np.concatenate([
+        #     self.model.data.qpos.flat[:-6],
+        #     self.model.data.qvel.flat[:-6],
+        #     self.get_body_com("distal_4"),
+        #     self.get_body_com("goal"),
+        #     pdistr,
+        #     self.get_body_com("goal"),
+        #     ])
+        # elif self.iteration > 155:
+        #     # return np.concatenate([
+        #     #     self.model.data.qpos.flat[:-6],
+        #     #     self.model.data.qvel.flat[:-6],
+        #     #     self.get_body_com("distal_4"),
+        #     #     self.get_body_com("object"),
+        #     #     self.get_body_com("distractor"),
+        #     #     self.get_body_com("goal"),
+        #     # ])
         #     return np.concatenate([
         #         self.model.data.qpos.flat[:-6],
         #         self.model.data.qvel.flat[:-6],
         #         self.get_body_com("distal_4"),
-        #         self.get_body_com("distractor"),
-        #         self.init_pos,
-        #         # self.get_body_com("object"),
         #         self.get_body_com("goal"),
-        #     ])
-        # # elif self.iteration >= 130:#130:
-        # elif self.iteration >= 130:#130:
-        #     return np.concatenate([
-        #         self.model.data.qpos.flat[:-6],
-        #         self.model.data.qvel.flat[:-6],
-        #         self.get_body_com("distal_4"),
-        #         self.get_body_com("object"),
         #         self.get_body_com("distractor"),
         #         self.get_body_com("goal"),
         #     ])
-        # return np.concatenate([
-        #     self.model.data.qpos.flat[:-6],
-        #     self.model.data.qvel.flat[:-6],
-        #     self.get_body_com("distal_4"),
-        #     self.get_body_com("distractor"),
-        #     self.get_body_com("object"),
-        #     self.get_body_com("goal"),
-        # ])
-        # return np.concatenate([
-        #     self.model.data.qpos.flat[:-6],
-        #     self.model.data.qvel.flat[:-6],
-        #     self.get_body_com("distal_4"),
-        #     self.get_body_com("object"),
-        #     self.get_body_com("distractor"),
-        #     self.get_body_com("goal"),
-        # ])
-        if self.iteration >= 80 and self.iteration <= 155: #75:
-        # if self.iteration <= 75:
-            if self.iteration == 80:#80:
-                qpos = self.model.data.qpos.flat.copy()
-                qpos[-4:-2] = np.array([10.0, 10.0])
-                setattr(self.model.data, 'qpos', qpos)
-                self.model._compute_subtree()
-                self.model.forward()
-                self.current_com = self.model.data.com_subtree[0]
-                self.dcom = np.zeros_like(self.current_com)
-            pgoal = self.get_body_com("goal")
-            pdistr = self.get_body_com("distractor").copy()
-            pobj = self.get_body_com("object")
-            ptip = self.get_body_com("distal_4").copy()
-            # pdistr[0] = max(pdistr[0], pobj[0]) + 0.2
-            # if ptip[1] >= pdistr[1]:
-            #     pdistr_up[1] += 0.2
-            # else:
-            # pdistr[1] = pgoal[1]
-            pdistr[:-1] += 0.2
-            # return np.concatenate([
-            # self.model.data.qpos.flat[:-6],
-            # self.model.data.qvel.flat[:-6],
-            # self.get_body_com("distal_4"),
-            # self.get_body_com("object"),
-            # pdistr,
-            # self.get_body_com("goal"),
-            # ])
-            return np.concatenate([
-            self.model.data.qpos.flat[:-6],
-            self.model.data.qvel.flat[:-6],
-            self.get_body_com("distal_4"),
-            self.get_body_com("goal"),
-            pdistr,
-            self.get_body_com("goal"),
-            ])
-        elif self.iteration > 155:
-            # return np.concatenate([
-            #     self.model.data.qpos.flat[:-6],
-            #     self.model.data.qvel.flat[:-6],
-            #     self.get_body_com("distal_4"),
-            #     self.get_body_com("object"),
-            #     self.get_body_com("distractor"),
-            #     self.get_body_com("goal"),
-            # ])
-            return np.concatenate([
-                self.model.data.qpos.flat[:-6],
-                self.model.data.qvel.flat[:-6],
-                self.get_body_com("distal_4"),
-                self.get_body_com("goal"),
-                self.get_body_com("distractor"),
-                self.get_body_com("goal"),
-            ])
         return np.concatenate([
             self.model.data.qpos.flat[:-6],
             self.model.data.qvel.flat[:-6],
@@ -234,8 +197,8 @@ class PusherEnvVision2D(MujocoEnv, Serializable):
         # else:
         #     reward_near = - np.linalg.norm(pdistr-ptip)
         reward_dist = - np.linalg.norm(pgoal-pobj)
-        reward_dist_distr = - np.linalg.norm(pgoal-pdistr)
-        reward_near = - np.linalg.norm(pdistr-ptip)
+        reward_dist_distr = - np.linalg.norm(pgoal-pobj)
+        reward_near = - np.linalg.norm(pobj-ptip)
         # reward_return = - np.linalg.norm(self.init_pos-ptip)
         # for second policy
         # reward = reward_dist + reward_dist_distr + 0.1 * reward_ctrl + 0.5 * reward_near

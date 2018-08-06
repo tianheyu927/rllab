@@ -8,9 +8,10 @@ from sandbox.rocky.tf.spaces.box import Box
 from sandbox.rocky.tf.spaces.product import Product
 from cached_property import cached_property
 
+from gym.spaces import Box as GymBox
 
 def to_tf_space(space):
-    if isinstance(space, TheanoBox):
+    if isinstance(space, TheanoBox) or isinstance(space, GymBox):
         return Box(low=space.low, high=space.high)
     elif isinstance(space, TheanoDiscrete):
         return Discrete(space.n)

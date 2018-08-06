@@ -24,14 +24,17 @@ def stack_tensor_list(tensor_list):
 
 def rollout(env, agent, max_path_length=np.inf, animated=False, speedup=1, noise=0.0,
             always_return_paths=False, env_reset=True, save_video=True, lstm=False, 
-            video_filename='sim_out.mp4', vision=False, is_push_2d=False):
+            video_filename='sim_out.mp4', vision=False, is_push_2d=False, real=False):
     observations = []
     actions = []
     rewards = []
     agent_infos = []
     env_infos = []
     images = []
-    o = env.wrapped_env.wrapped_env.reset()
+    if is_push_2d:
+        o = env.wrapped_env.wrapped_env.reset()
+    else:
+        o = env.reset()
     agent.reset()
     if animated:
         if 'viewer' in dir(env):
@@ -50,7 +53,11 @@ def rollout(env, agent, max_path_length=np.inf, animated=False, speedup=1, noise
         rotation_angle = 0
         cam_dist = 2 #4
         # cam_pos = np.array([0, 0, 0, cam_dist, -90, rotation_angle])
-        cam_pos = np.array([0.2, -0.4, 0, cam_dist, -90, rotation_angle])
+        if real:
+            angle = -60
+        else:
+            angle = -90
+        cam_pos = np.array([0.2, -0.4, 0, cam_dist, angle, rotation_angle])
         for i in range(3):
             viewer.cam.lookat[i] = cam_pos[i]
         viewer.cam.distance = cam_pos[3]
@@ -146,7 +153,7 @@ def rollout(env, agent, max_path_length=np.inf, animated=False, speedup=1, noise
         )
 
 def rollout_two_policy(env, agent1, agent2, path_length1=np.inf, max_path_length=np.inf, animated=False, speedup=1, noise=0.0,
-            always_return_paths=False, env_reset=True, save_video=True, video_filename='sim_out.mp4', vision=False):
+            always_return_paths=False, env_reset=True, save_video=True, video_filename='sim_out.mp4', vision=False, real=False):
     observations = []
     actions = []
     rewards = []
@@ -173,7 +180,11 @@ def rollout_two_policy(env, agent1, agent2, path_length1=np.inf, max_path_length
         rotation_angle = 0
         cam_dist = 2 #4
         # cam_pos = np.array([0, 0, 0, cam_dist, -90, rotation_angle])
-        cam_pos = np.array([0.2, -0.4, 0, cam_dist, -90, rotation_angle])
+        if real:
+            angle = -60
+        else:
+            angle = -90
+        cam_pos = np.array([0.2, -0.4, 0, cam_dist, angle, rotation_angle])
         for i in range(3):
             viewer.cam.lookat[i] = cam_pos[i]
         viewer.cam.distance = cam_pos[3]
@@ -275,7 +286,8 @@ def rollout_two_policy(env, agent1, agent2, path_length1=np.inf, max_path_length
 def rollout_sliding_window(env, agent, max_path_length=np.inf, animated=False, speedup=1, noise=0.0,
                            always_return_paths=False, env_reset=True, save_video=True, lstm=False, 
                            video_filename='sim_out.mp4', vision=False, is_push_2d=False,
-                           demo=None, window_size=135, run_steps=135, get_fp=False, pred_phase=False):
+                           demo=None, window_size=135, run_steps=135, get_fp=False, pred_phase=False,
+                           real=False):
     observations = []
     actions = []
     rewards = []
@@ -302,7 +314,11 @@ def rollout_sliding_window(env, agent, max_path_length=np.inf, animated=False, s
         rotation_angle = 0
         cam_dist = 2 #4
         # cam_pos = np.array([0, 0, 0, cam_dist, -90, rotation_angle])
-        cam_pos = np.array([0.2, -0.4, 0, cam_dist, -90, rotation_angle])
+        if real:
+            angle = -60
+        else:
+            angle = -90
+        cam_pos = np.array([0.2, -0.4, 0, cam_dist, angle, rotation_angle])
         for i in range(3):
             viewer.cam.lookat[i] = cam_pos[i]
         viewer.cam.distance = cam_pos[3]

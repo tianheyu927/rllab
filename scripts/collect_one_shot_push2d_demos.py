@@ -16,13 +16,14 @@ import pickle
 
 from rllab.envs.mujoco.pusher2d_vision_env import PusherEnvVision2D
 from rllab.envs.mujoco.pusher2d_vision_env_noback import PusherEnvVision2DNoback
+from rllab.envs.mujoco.pusher2d_vision_env_real import PusherEnvVision2DReal
 from rllab.envs.normalized_env import normalize
 from sandbox.rocky.tf.envs.base import TfEnv
 
 def eval_success(path):
 	obs = path['observations']
-	init = obs[0, -12:-10]
-	final = obs[-3:, -12:-10]
+	init = obs[0, -max_num_tries:-10]
+	final = obs[-3:, -max_num_tries:-10]
 	#   print("init is", init)
 	#   print("final is", final)
 	back_flag = np.sum(np.sum((init-final)**2, axis=1) < 0.025) >= 1
@@ -52,13 +53,16 @@ def eval_success_noback(path, noback=False):
 # files = '/home/kevin/rllab/data/local/trpo-push2d/trpo_push2d_2018_04_04_13_10_13_0001/itr_550.pkl'
 # files = '/home/kevin/rllab/data/local/trpo-push2d/trpo_push2d_2018_04_06_20_04_47_0001/itr_650.pkl'
 # files = '/home/kevin/rllab/data/local/trpo-push2d-distractor-goal/trpo_push2d_distractor_goal_2018_04_18_13_23_14_0001/itr_650.pkl'
-files = '/home/kevin/rllab/data/local/trpo-push2d-noback/trpo_push2d_noback_2018_04_18_20_29_33_0001/itr_250.pkl'
-files_noback = '/home/kevin/rllab/data/local/trpo-push2d-distractor-goal/trpo_push2d_distractor_goal_2018_04_22_15_29_22_0001/itr_650.pkl'
+# files = '/home/kevin/rllab/data/local/trpo-push2d-noback/trpo_push2d_noback_2018_04_18_20_29_33_0001/itr_250.pkl'
+# files_noback = '/home/kevin/rllab/data/local/trpo-push2d-distractor-goal/trpo_push2d_distractor_goal_2018_04_22_15_29_22_0001/itr_650.pkl'
+files = '/home/kevin/rllab/data/local/trpo-push2d-real/trpo_push2d_real_2018_06_11_14_11_39_0001/itr_300.pkl'
+# files_noback = '/home/kevin/rllab/data/local/trpo-push2d-distractor-goal/trpo_push2d_distractor_goal_2018_04_22_15_29_22_0001/itr_650.pkl'
 
+xmls_real = natsorted(glob.glob('/home/kevin/rllab/vendor/mujoco_models/pusher2d_real_xmls/train*'))
 xmls = natsorted(glob.glob('/home/kevin/rllab/vendor/mujoco_models/pusher2d_xmls/train*'))
 # xmls = natsorted(glob.glob('/home/kevin/rllab/vendor/mujoco_models/pusher2d_shorter_xmls/train*'))
-demos_per_expert = 4 #8 #8
-demos_per_expert_total = 8
+demos_per_expert = 3 #4 #8 #8
+demos_per_expert_total = 3 #8
 #output_dir = 'data/expert_demos/'
 
 #use_filter = True
@@ -70,10 +74,11 @@ demos_per_expert_total = 8
 use_filter = True
 filter_thresh = -55
 joint_thresh=0.7
-max_num_tries = 12 #24 #30 #12
-max_path_length = 120 #130
+max_num_tries = 12 #24 #30 #max_num_tries
+total_num_tries = 24
+max_path_length = 100 #120
 
-def collect_demos(policy, noise, noback=False):
+def collect_demos(policy, noise, noback=False, real=False):
 	returns = {j:[] for j in range(2)}
 	demoX = {j:[] for j in range(2)}
 	demoU = {j:[] for j in range(2)}
@@ -83,26 +88,29 @@ def collect_demos(policy, noise, noback=False):
 	obj_left = True
 	reach_half = False
 	while (len(returns[0]) < demos_per_expert and num_tries < max_num_tries):
-		offset = 0 if noback else 12
+		offset = 0 if noback else max_num_tries
 		if len(returns[0]) == demos_per_expert / 2 and not reach_half:
-			num_tries = 6 #12
-			xml_file = xmls[task_i*24 + num_tries + offset] #+12 for the second part of demos
-			xml_file1 = xmls[(task_i+1)*24 + num_tries + offset] #+12 for the second part of demos
+			num_tries = max_num_tries / 2 #max_num_tries
+			xml_file = xmls[task_i*total_num_tries + num_tries + offset] #+max_num_tries for the second part of demos
+			xml_file1 = xmls[(task_i+1)*total_num_tries + num_tries + offset] #+max_num_tries for the second part of demos
 			reach_half = True
 		else:
-			xml_file = xmls[task_i*24 + num_tries + offset] #+12 for the second part of demos
-			xml_file1 = xmls[(task_i+1)*24 + num_tries + offset] #+12 for the second part of demos
+			xml_file = xmls[task_i*total_num_tries + num_tries + offset] #+max_num_tries for the second part of demos
+			xml_file1 = xmls[(task_i+1)*total_num_tries + num_tries + offset] #+max_num_tries for the second part of demos
 		if len(returns[0]) < demos_per_expert / 2 and (num_tries == max_num_tries / 2):
 			break
 		print('xml for object is', xml_file)
 		if not noback:
-			pusher_env = PusherEnvVision2D(**{'xml_file':xml_file, 'distractors': True})
+			if not real:
+				pusher_env = PusherEnvVision2D(**{'xml_file':xml_file, 'distractors': True})
+			else:
+				pusher_env = PusherEnvVision2DReal(**{'xml_file':xml_file, 'distractors': True})
 		else:
 			pusher_env = PusherEnvVision2DNoback(**{'xml_file':xml_file, 'distractors': True})
 		env = TfEnv(normalize(pusher_env))
-		# path = rollout(env, policy, max_path_length=120, speedup=1,
+		# path = rollout(env, policy, max_path_length=max_num_tries0, speedup=1,
 		path = rollout(env, policy, max_path_length=max_path_length, speedup=1, noise=noise,
-				 animated=True, always_return_paths=True, save_video=False, vision=True)
+				 animated=True, always_return_paths=True, save_video=False, vision=True, real=real)
 		# close the window after rollout
 		env.render(close=True)
 		import time
@@ -113,13 +121,16 @@ def collect_demos(policy, noise, noback=False):
 		if eval_success_noback(path):# and path['observations'][-1,0] < joint_thresh:
 			print('xml for distractor is', xml_file1)
 			if not noback:
-				pusher_env = PusherEnvVision2D(**{'xml_file':xml_file1, 'distractors': True})
+				if not real:
+					pusher_env = PusherEnvVision2D(**{'xml_file':xml_file1, 'distractors': True})
+				else:
+					pusher_env = PusherEnvVision2DReal(**{'xml_file':xml_file1, 'distractors': True})
 			else:
 				pusher_env = PusherEnvVision2DNoback(**{'xml_file':xml_file1, 'distractors': True})
 			env = TfEnv(normalize(pusher_env))
-			# path = rollout(env, policy, max_path_length=120, speedup=1,
+			# path = rollout(env, policy, max_path_length=max_num_tries0, speedup=1,
 			path1 = rollout(env, policy, max_path_length=max_path_length, speedup=1, noise=noise,
-					 animated=True, always_return_paths=True, save_video=False, vision=True)
+					 animated=True, always_return_paths=True, save_video=False, vision=True, real=real)
 			# close the window after rollout
 			env.render(close=True)
 			import time
@@ -148,6 +159,7 @@ if __name__ == '__main__':
 	parser.add_argument('--xml_end_idx', type=int, default=1000)
 	parser.add_argument('--test', type=bool, default=False)
 	parser.add_argument('--noback', type=bool, default=False)
+	parser.add_argument('--real', type=bool, default=False)
 	parser.add_argument('--noise', type=float, default=0.0)
 	args = parser.parse_args()
 	start = args.xml_start_idx
@@ -155,13 +167,17 @@ if __name__ == '__main__':
 	test = args.test
 	noise = args.noise
 	noback = args.noback
-	output_dir = 'data/push2d_demos_noback/'
+	real = args.real
+	# output_dir = 'data/push2d_demos_noback/'
+	output_dir = 'data/push2d_demos_noback_real/'
 
 	if test:
 		output_dir = 'data/test_push2d_demos_no_back/'
 		xmls = natsorted(glob.glob('/home/kevin/rllab/vendor/mujoco_models/pusher2d_xmls/test*'))
 		# xmls = natsorted(glob.glob('/home/kevin/rllab/vendor/mujoco_models/pusher2d_shorter_xmls/test*'))
-		
+	elif real:
+		xmls = xmls_real
+
 	output_dir = Path(output_dir)
 	output_dir.mkdir_p()
 	
@@ -185,13 +201,13 @@ if __name__ == '__main__':
 			videos = {j:[] for j in range(2)}
 			save_xml_files = {j:[] for j in range(2)}
 			if noback:
-				demoX_noback, demoU_noback, videos_noback, save_xml_files_noback = collect_demos(policy_noback, noise, noback=True)
+				demoX_noback, demoU_noback, videos_noback, save_xml_files_noback = collect_demos(policy_noback, noise, noback=True, real=real)
 				demoX.update(demoX_noback)
 				demoU.update(demoU_noback)
 				videos.update(videos_noback)
 				save_xml_files[1] = save_xml_files_noback[0]
 				save_xml_files[0] = save_xml_files_noback[1]
-			demoX_, demoU_, videos_, save_xml_files_ = collect_demos(policy, noise)
+			demoX_, demoU_, videos_, save_xml_files_ = collect_demos(policy, noise, real=real)
 			demoX[0].extend(demoX_[1])
 			demoX[1].extend(demoX_[0])
 			demoU[0].extend(demoU_[1])

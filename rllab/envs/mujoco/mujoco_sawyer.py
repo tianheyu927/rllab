@@ -5,6 +5,8 @@ import random
 import tempfile
 import os
 import numpy as np
+import stl
+from stl import mesh
 
 from shutil import copyfile, copy2
 
@@ -14,13 +16,42 @@ RLLAB_REAL_PATH = '/home/kevin/rllab/vendor/mujoco_models/pusher2d_real_xmls/'
 GYM_PATH = '/home/kevin/gym/gym/envs/mujoco/assets/pusher2d_xmls/'
 # RLLAB_MULTIGOAL_PATH = '/home/kevin/rllab/vendor/mujoco_models/pusher2d_multigoal_xmls/'
 RLLAB_MULTIGOAL_PATH = '/home/kevin/rllab/vendor/mujoco_models/pusher2d_multigoal_xmls_real/'
-TABLE_TEXTURE_PATH = '/home/kevin/gym/gym/envs/mujoco/assets/sim_push_xmls/textures/table_textures/pic_032.png'
+MESH_PATH = '/home/kevin/gym/gym/envs/mujoco/assets/sim_push_xmls/mujoco_models/'
+OBJ_TEXTURE_PATH = '/home/kevin/gym/gym/envs/mujoco/assets/sim_push_xmls/textures/obj_textures/'
+CONFIG_XML = 'shared_config.xml'
+BASE_XML = 'sawyer_xyz_base.xml'
+
+# find the max dimensions, so we can know the bounding box, getting the height,
+# width, length (because these are the step size)...
+def find_mins_maxs(obj):
+    minx = maxx = miny = maxy = minz = maxz = None
+    for p in obj.points:
+        # p contains (x, y, z)
+        if minx is None:
+            minx = p[stl.Dimension.X]
+            maxx = p[stl.Dimension.X]
+            miny = p[stl.Dimension.Y]
+            maxy = p[stl.Dimension.Y]
+            minz = p[stl.Dimension.Z]
+            maxz = p[stl.Dimension.Z]
+        else:
+            maxx = max(p[stl.Dimension.X], maxx)
+            minx = min(p[stl.Dimension.X], minx)
+            maxy = max(p[stl.Dimension.Y], maxy)
+            miny = min(p[stl.Dimension.Y], miny)
+            maxz = max(p[stl.Dimension.Z], maxz)
+            minz = min(p[stl.Dimension.Z], minz)
+    return minx, maxx, miny, maxy, minz, maxz
+
 
 class MJCModel(object):
-    def __init__(self, name):
+    def __init__(self, name, include_config=False):
         self.name = name
-        self.root = MJCTreeNode("mujoco").add_attr('model', name)
-
+        if not include_config:
+            self.root = MJCTreeNode("mujoco").add_attr('model', name)
+        else:
+            self.root = MJCTreeNode("mujoco")
+            
     @contextmanager
     def asfile(self):
         """
@@ -61,10 +92,11 @@ class MJCModelRegen(MJCModel):
 
 
 class MJCTreeNode(object):
-    def __init__(self, name):
+    def __init__(self, name, end_with_name=False):
         self.name = name
         self.attrs = {}
         self.children = []
+        self.end_with_name = end_with_name
 
     def add_attr(self, key, value):
         if isinstance(value, str):  # should be basestring in python2
@@ -77,7 +109,11 @@ class MJCTreeNode(object):
 
     def __getattr__(self, name):
         def wrapper(**kwargs):
-            newnode =  MJCTreeNode(name)
+            if 'end_with_name' in kwargs.keys():
+                end_with_name = kwargs.pop('end_with_name')
+            else:
+                end_with_name = False
+            newnode =  MJCTreeNode(name, end_with_name=end_with_name)
             for (k, v) in kwargs.items(): # iteritems in python2
                 newnode.add_attr(k, v)
             self.children.append(newnode)
@@ -103,79 +139,148 @@ class MJCTreeNode(object):
             ostream.write('</%s>\n' % self.name)
         else:
             ostream.write('\t'*tabs)
-            ostream.write('<%s %s/>\n' % (self.name, contents))
+            if self.end_with_name:
+                ostream.write('<%s %s></%s>\n' % (self.name, contents, self.name))
+            else:
+                ostream.write('<%s %s/>\n' % (self.name, contents))
 
     def __str__(self):
         s = "<"+self.name
         s += ' '.join(['%s="%s"'%(k,v) for (k,v) in self.attrs.items()])
         return s+">"
 
-def pusher(object_pos=(0., 0., -0.1), goal_pos=(0., 0., -0.145), distractor_pos=(0.5,0.3,-0.1), object_color=(1., 0., 0., 1.), distractor_color=(0., 1., 0., 1.),
-            table_texture=None):
-    object_pos, goal_pos, distractor_pos, object_color, distractor_color = list(object_pos), list(goal_pos), list(distractor_pos), list(object_color), list(distractor_color)
+def sawyer(obj_scale=None,
+            obj_mass=None,
+            obj_damping=None,
+            object_pos=(-0.1, 0.6, 0.02),
+            distr_scale=None, 
+            distr_mass=None,
+            distr_damping=None, 
+            goal_pos=(0.0, 0.9, 0.02), 
+            distractor_poses=[(0.5,0.5,0.02)], 
+            mesh_file=None,
+            mesh_file_path=None, 
+            distractor_mesh_files=None, 
+            friction=(2.0, 0.10, 0.002), 
+            distractor_textures=None,
+            obj_texture=None,
+            config_xml=None,
+            base_xml=None):
+    object_pos, goal_pos, distractor_poses, friction = list(object_pos), list(goal_pos), [list(pos) for pos in distractor_poses], list(friction)
+    n_distractors = len(distractor_poses)
+    
+    if obj_scale is None:
+        obj_scale = random.uniform(0.2, 0.3)
+    if obj_mass is None:
+        obj_mass = random.uniform(0.1, 0.2)
+    if obj_damping is None:
+        obj_damping = 0.
+    obj_damping = str(obj_damping)
+
+    if distractor_mesh_files:
+        if distr_scale is None:
+            distr_scale = random.uniform(0.2, 0.3)
+        if distr_mass is None:
+            distr_mass = random.uniform(0.1, 0.2)
+        if distr_damping is None:
+            distr_damping = 0.
+        distr_damping = str(distr_damping)
+
     # For now, only supports one distractor
 
-    mjcmodel = MJCModel('arm3d')
-    mjcmodel.root.compiler(inertiafromgeom="true", angle="radian", coordinate="local")
-    mjcmodel.root.option(timestep="0.01",gravity="0 0 0",iterations="20",integrator="Euler")
-    default = mjcmodel.root.default()
-    default.joint(armature='0.04', damping=1, limited='true')
-    default.geom(friction="0.8 0.1 0.1",density="300",margin="0.002",condim="1",contype="1",conaffinity="1")
+    mjcmodel = MJCModel('sawyer', include_config=True)
+    mjcmodel.root.include(file=config_xml, end_with_name=True)
 
-    # Make table
+    # Make base
     worldbody = mjcmodel.root.worldbody()
-    # worldbody.light(diffuse=".5 .5 .5", pos="0 0 3", dir="0 0 -1")
-    worldbody.light(diffuse="1 1 1", pos="0 5 10", dir="0 0 -1", castshadow="false")
-    if table_texture:
-        worldbody.geom(name="table", material='table', type="plane", pos="0 0.5 -0.15", size="3 3 0.1", contype="1", conaffinity="1")
-    else:
-        worldbody.geom(name="table", type="plane", pos="0 0.5 -0.15", size="3 3 0.1", contype="1", conaffinity="1")
-    # Make arm
-    # palm = worldbody.body(name="palm", pos="0 0 0")
-    palm = worldbody.body(name="palm", pos="0.25 0 0")
-    palm.geom(rgba="0.6 0.6 0.6 1", type="capsule", fromto="0 0 -0.1 0 0 0.1", size="0.12")
-    proximal_1 = palm.body(name="proximal_1", pos="0 0 -0.075", axisangle="0 0 1 0.785")
-    proximal_1.joint(name="proximal_j_1", type="hinge", pos="0 0 0", axis="0 0 1", range="-2.5 2.5", damping="1.0")
-    proximal_1.geom(rgba="0.6 0.6 0.6 1", type="capsule",  fromto="0 0 0 0.4 0 0", size="0.06", contype="1", conaffinity="1")
-    distal_1 = proximal_1.body(name="distal_1", pos="0.4 0 0", axisangle="0 0 1 -0.785")
-    distal_1.joint(name="distal_j_1", type="hinge", pos="0 0 0", axis="0 0 1", range="-2.3213 2.3", damping="1.0")
-    distal_1.geom(rgba="0.6 0.6 0.6 1", type="capsule",  fromto="0 0 0 0.4 0 0", size="0.06", contype="1", conaffinity="1")
-    distal_2 = distal_1.body(name="distal_2", pos="0.4 0 0", axisangle="0 0 1 -1.57")
-    distal_2.joint(name="distal_j_2", type="hinge", pos="0 0 0", axis="0 0 1", range="-2.3213 2.3", damping="1.0")
-    distal_2.geom(rgba="0.6 0.6 0.6 1", type="capsule", fromto="0 0 0 0.4 0 0", size="0.06", contype="1", conaffinity="1")
-    distal_4 = distal_2.body(name="distal_4", pos="0.4 0 0")
-    distal_4.site(name="tip arml", pos="0.1 -0.2 0", size="0.01")
-    distal_4.site(name="tip armr", pos="0.1 0.2 0", size="0.01")
-    distal_4.geom(rgba="0.6 0.6 0.6 1", type="capsule", fromto="0 -0.2 0 0 0.2 0", size="0.04", contype="1", conaffinity="1")
-    distal_4.geom(rgba="0.6 0.6 0.6 1", type="capsule", fromto="0 -0.2 0 0.2 -0.2 0", size="0.04", contype="1", conaffinity="1")
-    distal_4.geom(rgba="0.6 0.6 0.6 1", type="capsule", fromto="0 0.2 0 0.2 0.2 0", size="0.04", contype="1", conaffinity="1")
-
-    ## MAKE DISTRACTOR
-    distractor = worldbody.body(name="distractor", pos=distractor_pos)
-    distractor.geom(rgba=distractor_color, type="cylinder", size="0.1 0.1 0.1", density="0.00001", contype="1", conaffinity="1")
-    distractor.joint(name="distractor_slidey", type="slide", pos="0.025 0.025 0.025", axis="0 1 0", range="-10.3213 10.3", damping="0.5")
-    distractor.joint(name="distractor_slidex", type="slide", pos="0.025 0.025 0.025", axis="1 0 0", range="-10.3213 10.3", damping="0.5")
+    worldbody.include(file=base_xml, end_with_name=True)
+    
+    # Process object physical properties
+    if mesh_file is not None:
+        mesh_object = mesh.Mesh.from_file(mesh_file)
+        vol, cog, inertia = mesh_object.get_mass_properties()
+        minx, maxx, miny, maxy, minz, maxz = find_mins_maxs(mesh_object)
+        max_length = max((maxx-minx),max((maxy-miny),(maxz-minz)))
+        scale = obj_scale*0.0012 * (200.0 / max_length)
+        object_density = obj_mass / (vol*scale*scale*scale)
+        object_pos[0] -= scale*(minx+maxx)/2.0
+        object_pos[1] -= scale*(miny+maxy)/2.0
+        # object_pos[2] = -0.324 - scale*minz
+        object_pos[2] = 0.02 - scale*minz
+        object_scale = scale
+    distr_densities, distr_scales = [], []
+    if distractor_mesh_files is not None:
+        for i in range(n_distractors):
+            distr_mesh_object = mesh.Mesh.from_file(distractor_mesh_files[i])
+            vol, cog, inertia = distr_mesh_object.get_mass_properties()
+            minx, maxx, miny, maxy, minz, maxz = find_mins_maxs(distr_mesh_object)
+            max_length = max((maxx-minx),max((maxy-miny),(maxz-minz)))
+            distr_scale = distr_scale*0.0012 * (200.0 / max_length)
+            distr_density = distr_mass / (vol*distr_scale*distr_scale*distr_scale)
+            distr_scales.append(distr_scale)
+            distr_densities.append(distr_density)
+            distractor_poses[i][0] -= distr_scale*(minx+maxx)/2.0
+            distractor_poses[i][1] -= distr_scale*(miny+maxy)/2.0
+            # distractor_poses[i][2] = -0.324 - distr_scale*minz
+            distractor_poses[i][2] = 0.02 - distr_scale*minz
 
     # MAKE TARGET OBJECT
-    obj = worldbody.body(name="object", pos=object_pos)
-    obj.geom(rgba=object_color, type="cylinder", size="0.1 0.1 0.1", density="0.00001", contype="1", conaffinity="1")
-    obj.joint(name="obj_slidey", type="slide", pos="0.025 0.025 0.025", axis="0 1 0", range="-10.3213 10.3", damping="0.5")
-    obj.joint(name="obj_slidex", type="slide", pos="0.025 0.025 0.025", axis="1 0 0", range="-10.3213 10.3", damping="0.5")
-
+    obj = worldbody.body(name="obj", pos=object_pos)
+    if mesh_file is None:
+        obj.geom(name="objbox", type="sphere", pos="0 0 0",
+                  size="0.02 0.02 0.02 0.02", rgba=".1 .1 .9 1",
+                  contype="1", conaffinity="1", friction="10.0 0.10 0.002", condim="3", mass=1.0)
+    else:
+        if obj_texture:
+            obj.geom(material='object', conaffinity="1", contype="1", condim="3", friction=friction, density=str(object_density), mesh="object_mesh", rgba="1 1 1 1", type="mesh")
+        else:
+            obj.geom(conaffinity="1", contype="1", condim="3", friction=friction, density=str(object_density), mesh="object_mesh", rgba="1 1 1 1", type="mesh")
+        obj.joint(name="objjoint", type="free", limited="false", damping=obj_damping, armature="0")
+        obj.inertial(pos="0 0 0", mass=".1", diaginertia="100000 100000 100000")
+        
+    ## MAKE DISTRACTOR
+    if distractor_mesh_files:
+        for i in range(n_distractors):
+            distractor = worldbody.body(name="distractor_%d" % i, pos=distractor_poses[i])
+            if distractor_textures:
+                distractor.geom(material='distractor_%d' % i, conaffinity="1", contype="1", condim="3", friction=friction, density=str(distr_densities[i]), mesh="distractor_%d_mesh" % i, rgba="1 1 1 1", type="mesh")
+            else:
+                distractor.geom(conaffinity="1", contype="1", condim="3", friction=friction, density=str(distr_densities[i]), mesh="distractor_%d_mesh" % i, rgba="1 1 1 1", type="mesh")
+            distractor.joint(name="distractor_%d_joint" % i, type="free", limited="false", damping=distr_damping, armature="0")
+            distractor.inertial(pos="0 0 0", mass=".1", diaginertia="100000 100000 100000")
+    
     goal = worldbody.body(name="goal", pos=goal_pos)
-    goal.geom(rgba="0 0 0 1", type="cylinder", size="0.17 0.005 0.2", density='0.00001', contype="0", conaffinity="0")
-    goal.joint(name="goal_slidey", type="slide", pos="0 0 0", axis="0 1 0", range="-10.3213 10.3", damping="0.5")
-    goal.joint(name="goal_slidex", type="slide", pos="0 0 0", axis="1 0 0", range="-10.3213 10.3", damping="0.5")
+    dragonball1 = goal.body(name="dragonball1", pos="0.075 0 0.1")
+    dragonball1.geom(rgba="1 0 1 1", type="sphere", size="0.005 0.005 0.005")
+    dragonball2 = goal.body(name="dragonball2", pos="-0.075 0 0.1")
+    dragonball2.geom(rgba="1 0 1 1", type="sphere", size="0.005 0.005 0.005")
+    goal.geom(name="goal_bottom", rgba="1 1 0 1", type="box", pos="0 0 0.005", size="0.075 0.075 0.001", contype="1", conaffinity="1", mass="1000")
+    goal.geom(name="goal_wall1", rgba="1 1 1 1", type="box", pos="0.0 0.075 0.054", size="0.075 0.001 0.05", contype="1", conaffinity="0", mass="1000")
+    goal.geom(name="goal_wall2", rgba="1 1 1 1", type="box", pos="0.0 -0.075 0.054", size="0.075 0.001 0.05", contype="1", conaffinity="0", mass="1000")
+    goal.geom(name="goal_wall3", rgba="1 1 1 1", type="box", pos="0.075 0 0.054", size="0.001 0.075 0.05", contype="1", conaffinity="0", mass="1000")
+    goal.geom(name="goal_wall4", rgba="1 1 1 1", type="box", pos="-0.076 0 0.054", size="0.001 0.075 0.05", contype="1", conaffinity="0", mass="1000")
+    goal.geom(rgba="1 1 1 1", type="capsule", fromto="0.073 0.073 0.0075 0.073 0.073 0.10", size="0.005", contype="1", conaffinity="0")
+    goal.geom(rgba="1 1 1 1", type="capsule", fromto="0.073 -0.073 0.0075 0.073 -0.073 0.10", size="0.005", contype="1", conaffinity="0")
+    goal.geom(rgba="1 1 1 1", type="capsule", fromto="-0.073 0.073 0.0075 -0.073 0.073 0.10", size="0.005", contype="1", conaffinity="0")
+    goal.geom(rgba="1 1 1 1", type="capsule", fromto="-0.073 -0.073 0.0075 -0.073 -0.073 0.10", size="0.005", contype="1", conaffinity="0")
+    goal.joint(name="goal_slidey", type="slide", pos="0 0 0", axis="0 1 0", range="-10.3213 10.3", damping="1.0")
+    goal.joint(name="goal_slidex", type="slide", pos="0 0 0", axis="1 0 0", range="-10.3213 10.3", damping="1.0")
 
     asset = mjcmodel.root.asset()
-    if table_texture:
-        asset.texture(name='table', file=table_texture, type='2d')
-        asset.material(shininess='0.3', specular='1', name='table', rgba='0.9 0.9 0.9 1', texture='table')    
-    
+    asset.mesh(file=mesh_file_path, name="object_mesh", scale=[object_scale]*3) # figure out the proper scale
+    if distractor_mesh_files:
+        for i in range(n_distractors):
+            asset.mesh(file=distractor_mesh_files[i], name="distractor_%d_mesh" % i, scale=[distr_scales[i]]*3)
+            if distractor_textures:
+                asset.texture(name='distractor_%d' % i, file=distractor_textures[i])
+                asset.material(shininess='0.3', specular='1', name='distractor_%d' % i, rgba='0.9 0.9 0.9 1', texture='distractor_%d' % i)
+    if obj_texture:
+        asset.texture(name='object', file=obj_texture)
+        asset.material(shininess='0.3', specular='1', name='object', rgba='0.9 0.9 0.9 1', texture='object')
+
     actuator = mjcmodel.root.actuator()
-    actuator.motor(joint="proximal_j_1", ctrlrange="-3.0 3.0", ctrllimited="true")
-    actuator.motor(joint="distal_j_1", ctrlrange="-3.0 3.0", ctrllimited="true")
-    actuator.motor(joint="distal_j_2", ctrlrange="-3.0 3.0", ctrllimited="true")
+    actuator.position(ctrllimited="true", ctrlrange="-1 1", joint="r_close", kp="400",  user="1")
+    actuator.position(ctrllimited="true", ctrlrange="-1 1", joint="l_close", kp="400",  user="1")
 
     return mjcmodel
 
@@ -186,6 +291,15 @@ if __name__ == '__main__':
     parser.add_argument('--xml_filepath', type=str, default='None')
     parser.add_argument('--debug_log', type=str, default='None')
     args = parser.parse_args()
+    # model = sawyer(mesh_file=MESH_PATH+'fox.stl', mesh_file_path=MESH_PATH+'fox.stl', distractor_mesh_files=[MESH_PATH+'Keysafe.stl'],
+    #                 obj_texture=OBJ_TEXTURE_PATH+'banded_0002.png', distractor_textures=[OBJ_TEXTURE_PATH+'banded_0004.png'],
+    #                 config_xml=CONFIG_XML, base_xml=BASE_XML)
+    # model.save('/home/kevin/multiworld/multiworld/envs/assets/sawyer_xyz/sawyer_pick_and_place_fox_keysafe.xml')
+    model = sawyer(mesh_file=MESH_PATH+'vase1.stl', mesh_file_path=MESH_PATH+'vase1.stl', distractor_mesh_files=None,
+                    obj_texture=OBJ_TEXTURE_PATH+'banded_0002.png',
+                    config_xml=CONFIG_XML, base_xml=BASE_XML)
+    model.save('/home/kevin/multiworld/multiworld/envs/assets/sawyer_xyz/sawyer_pick_and_place_vase1.xml')
+    import pdb; pdb.set_trace()
     # model = pusher(object_pos=(0, 0, -0.1), goal_pos=(-0.25, -0.65, -0.145), distractor_pos=(0, 0, -0.1),
     #                 object_color=(0.6464944792711915, 0.8851453486090576, 0.9337627557555863, 1.0), 
     #                 distractor_color=(0.9950538605327119, 0.2617251721988596, 0.06634001915093157, 1.0),

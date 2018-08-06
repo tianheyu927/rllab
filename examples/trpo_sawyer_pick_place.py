@@ -6,18 +6,18 @@ from sandbox.rocky.tf.optimizers.conjugate_gradient_optimizer import FiniteDiffe
 from sandbox.rocky.tf.policies.gaussian_mlp_policy import GaussianMLPPolicy
 from sandbox.rocky.tf.envs.base import TfEnv
 from rllab.misc.instrument import stub, run_experiment_lite
-from rllab.envs.mujoco.pusher2d_env import PusherEnv2D
+from multiworld.envs.mujoco.sawyer_xyz.sawyer_pick_and_place_mil import SawyerPickPlaceMILEnv
+from multiworld.core.flat_goal_env import FlatGoalEnv
 
-#from gym.envs.mujoco.pusher import PusherEnv
-from rllab.envs.gym_env import GymEnv
+xml_file = '/home/kevin/multiworld/multiworld/envs/assets/sawyer_xyz/sawyer_pick_and_place_vase1.xml'
 
 def run_task(*_):
 
     # env = TfEnv(normalize(GymEnv("Pusher-v0", force_reset=True, record_video=False)))
-    env = TfEnv(normalize(PusherEnv2D(**{'distractors': True})))
+    env = TfEnv(FlatGoalEnv(SawyerPickPlaceMILEnv(**{'xml_file': xml_file})))
     policy = GaussianMLPPolicy(
         # name="policy",
-        name="policy_new",
+        name="policy",
         env_spec=env.spec,
         # The neural network policy should have two hidden layers, each with 32 hidden units.
         hidden_sizes=(128, 128)
@@ -43,12 +43,11 @@ def run_task(*_):
 run_experiment_lite(
     run_task,
     # Number of parallel workers for sampling
-    n_parallel=8,
+    n_parallel=6,
     # Only keep the snapshot parameters for the last iteration
     snapshot_mode="gap",
     snapshot_gap=50,
-    # exp_prefix='trpo_push2d_distractor_goal', #'trpo_push2d',
-    exp_prefix='trpo_push2d_distractor_goal', #'trpo_push2d',
+    exp_prefix='trpo_sawyer_pick_place',
     python_command='python3',
     # Specifies the seed for the experiment. If this is not provided, a random seed
     # will be used
