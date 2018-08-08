@@ -15,6 +15,8 @@ if __name__ == "__main__":
                         help='Max length of rollout')
     parser.add_argument('--speedup', type=float, default=1,
                         help='Speedup')
+    parser.add_argument('--is_sawyer', type=bool, default=False,
+                        help='whether to visualize the sawyer')
     args = parser.parse_args()
 
     # If the snapshot file use tensorflow, do:
@@ -27,6 +29,7 @@ if __name__ == "__main__":
         env = data['env']
         while True:
             path = rollout(env, policy, max_path_length=args.max_path_length,
-                           animated=True, speedup=args.speedup)
+                           animated=True, save_video=False, speedup=args.speedup,
+                           is_sawyer=args.is_sawyer)
             if not query_yes_no('Continue simulation?'):
                 break

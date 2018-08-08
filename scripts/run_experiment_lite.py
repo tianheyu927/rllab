@@ -94,7 +94,7 @@ def run_experiment(argv):
         logger.log_variant(variant_log_file, variant_data)
     else:
         variant_data = None
-
+    
     if not args.use_cloudpickle:
         logger.log_parameters_lite(params_log_file, args)
 
@@ -109,10 +109,13 @@ def run_experiment(argv):
     logger.push_prefix("[%s] " % args.exp_name)
 
     if args.resume_from is not None:
-        data = joblib.load(args.resume_from)
-        assert 'algo' in data
-        algo = data['algo']
-        algo.train()
+        import tensorflow as tf
+        with tf.Session() as sess:
+            data = joblib.load(args.resume_from)
+            import pdb; pdb.set_trace()
+            assert 'algo' in data
+            algo = data['algo']
+            algo.train()
     else:
         # read from stdin
         if args.use_cloudpickle:

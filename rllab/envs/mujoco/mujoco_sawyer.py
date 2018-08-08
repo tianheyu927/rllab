@@ -228,13 +228,13 @@ def sawyer(obj_scale=None,
     obj = worldbody.body(name="obj", pos=object_pos)
     if mesh_file is None:
         obj.geom(name="objbox", type="sphere", pos="0 0 0",
-                  size="0.02 0.02 0.02 0.02", rgba=".1 .1 .9 1",
-                  contype="1", conaffinity="1", friction="10.0 0.10 0.002", condim="3", mass=1.0)
+                  size="0.02 0.02 0.02 0.02", rgba=".1 .1 .9 1", solimp="0.99 0.99 0.01", solref="0.01 1",
+                  contype="1", conaffinity="1", friction="10.0 0.10 0.002", condim="4", mass=1.0)
     else:
         if obj_texture:
-            obj.geom(material='object', conaffinity="1", contype="1", condim="3", friction=friction, density=str(object_density), mesh="object_mesh", rgba="1 1 1 1", type="mesh")
+            obj.geom(material='object', conaffinity="1", contype="1", condim="4", solimp="0.99 0.99 0.01", solref="0.01 1", friction=friction, density=str(object_density), mesh="object_mesh", rgba="1 1 1 1", type="mesh")
         else:
-            obj.geom(conaffinity="1", contype="1", condim="3", friction=friction, density=str(object_density), mesh="object_mesh", rgba="1 1 1 1", type="mesh")
+            obj.geom(conaffinity="1", contype="1", condim="4", solimp="0.99 0.99 0.01", solref="0.01 1", friction=friction, density=str(object_density), mesh="object_mesh", rgba="1 1 1 1", type="mesh")
         obj.joint(name="objjoint", type="free", limited="false", damping=obj_damping, armature="0")
         obj.inertial(pos="0 0 0", mass=".1", diaginertia="100000 100000 100000")
         
@@ -243,26 +243,26 @@ def sawyer(obj_scale=None,
         for i in range(n_distractors):
             distractor = worldbody.body(name="distractor_%d" % i, pos=distractor_poses[i])
             if distractor_textures:
-                distractor.geom(material='distractor_%d' % i, conaffinity="1", contype="1", condim="3", friction=friction, density=str(distr_densities[i]), mesh="distractor_%d_mesh" % i, rgba="1 1 1 1", type="mesh")
+                distractor.geom(material='distractor_%d' % i, conaffinity="1", contype="1", condim="4", solimp="0.99 0.99 0.01", solref="0.01 1", friction=friction, density=str(distr_densities[i]), mesh="distractor_%d_mesh" % i, rgba="1 1 1 1", type="mesh")
             else:
-                distractor.geom(conaffinity="1", contype="1", condim="3", friction=friction, density=str(distr_densities[i]), mesh="distractor_%d_mesh" % i, rgba="1 1 1 1", type="mesh")
+                distractor.geom(conaffinity="1", contype="1", condim="4", solimp="0.99 0.99 0.01", solref="0.01 1", friction=friction, density=str(distr_densities[i]), mesh="distractor_%d_mesh" % i, rgba="1 1 1 1", type="mesh")
             distractor.joint(name="distractor_%d_joint" % i, type="free", limited="false", damping=distr_damping, armature="0")
             distractor.inertial(pos="0 0 0", mass=".1", diaginertia="100000 100000 100000")
     
     goal = worldbody.body(name="goal", pos=goal_pos)
-    dragonball1 = goal.body(name="dragonball1", pos="0.075 0 0.1")
+    dragonball1 = goal.body(name="dragonball1", pos="0.075 0 0.06")
     dragonball1.geom(rgba="1 0 1 1", type="sphere", size="0.005 0.005 0.005")
-    dragonball2 = goal.body(name="dragonball2", pos="-0.075 0 0.1")
+    dragonball2 = goal.body(name="dragonball2", pos="-0.075 0 0.06")
     dragonball2.geom(rgba="1 0 1 1", type="sphere", size="0.005 0.005 0.005")
-    goal.geom(name="goal_bottom", rgba="1 1 0 1", type="box", pos="0 0 0.005", size="0.075 0.075 0.001", contype="1", conaffinity="1", mass="1000")
-    goal.geom(name="goal_wall1", rgba="1 1 1 1", type="box", pos="0.0 0.075 0.054", size="0.075 0.001 0.05", contype="1", conaffinity="0", mass="1000")
-    goal.geom(name="goal_wall2", rgba="1 1 1 1", type="box", pos="0.0 -0.075 0.054", size="0.075 0.001 0.05", contype="1", conaffinity="0", mass="1000")
-    goal.geom(name="goal_wall3", rgba="1 1 1 1", type="box", pos="0.075 0 0.054", size="0.001 0.075 0.05", contype="1", conaffinity="0", mass="1000")
-    goal.geom(name="goal_wall4", rgba="1 1 1 1", type="box", pos="-0.076 0 0.054", size="0.001 0.075 0.05", contype="1", conaffinity="0", mass="1000")
-    goal.geom(rgba="1 1 1 1", type="capsule", fromto="0.073 0.073 0.0075 0.073 0.073 0.10", size="0.005", contype="1", conaffinity="0")
-    goal.geom(rgba="1 1 1 1", type="capsule", fromto="0.073 -0.073 0.0075 0.073 -0.073 0.10", size="0.005", contype="1", conaffinity="0")
-    goal.geom(rgba="1 1 1 1", type="capsule", fromto="-0.073 0.073 0.0075 -0.073 0.073 0.10", size="0.005", contype="1", conaffinity="0")
-    goal.geom(rgba="1 1 1 1", type="capsule", fromto="-0.073 -0.073 0.0075 -0.073 -0.073 0.10", size="0.005", contype="1", conaffinity="0")
+    goal.geom(name="goal_bottom", rgba="1 1 0 1", type="box", pos="0 0 0.005", size="0.075 0.075 0.001", contype="1", conaffinity="0", mass="1000")
+    goal.geom(name="goal_wall1", rgba="1 1 1 1", type="box", pos="0.0 0.075 0.034", size="0.075 0.001 0.03", contype="0", conaffinity="0", mass="1000")
+    goal.geom(name="goal_wall2", rgba="1 1 1 1", type="box", pos="0.0 -0.075 0.034", size="0.075 0.001 0.03", contype="0", conaffinity="0", mass="1000")
+    goal.geom(name="goal_wall3", rgba="1 1 1 1", type="box", pos="0.075 0 0.034", size="0.001 0.075 0.03", contype="0", conaffinity="0", mass="1000")
+    goal.geom(name="goal_wall4", rgba="1 1 1 1", type="box", pos="-0.076 0 0.034", size="0.001 0.075 0.03", contype="0", conaffinity="0", mass="1000")
+    goal.geom(rgba="1 1 1 1", type="capsule", fromto="0.073 0.073 0.0075 0.073 0.073 0.06", size="0.005", contype="0", conaffinity="0")
+    goal.geom(rgba="1 1 1 1", type="capsule", fromto="0.073 -0.073 0.0075 0.073 -0.073 0.06", size="0.005", contype="0", conaffinity="0")
+    goal.geom(rgba="1 1 1 1", type="capsule", fromto="-0.073 0.073 0.0075 -0.073 0.073 0.06", size="0.005", contype="0", conaffinity="0")
+    goal.geom(rgba="1 1 1 1", type="capsule", fromto="-0.073 -0.073 0.0075 -0.073 -0.073 0.06", size="0.005", contype="0", conaffinity="0")
     goal.joint(name="goal_slidey", type="slide", pos="0 0 0", axis="0 1 0", range="-10.3213 10.3", damping="1.0")
     goal.joint(name="goal_slidex", type="slide", pos="0 0 0", axis="1 0 0", range="-10.3213 10.3", damping="1.0")
 

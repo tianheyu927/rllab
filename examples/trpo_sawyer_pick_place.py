@@ -13,7 +13,6 @@ xml_file = '/home/kevin/multiworld/multiworld/envs/assets/sawyer_xyz/sawyer_pick
 
 def run_task(*_):
 
-    # env = TfEnv(normalize(GymEnv("Pusher-v0", force_reset=True, record_video=False)))
     env = TfEnv(FlatGoalEnv(SawyerPickPlaceMILEnv(**{'xml_file': xml_file})))
     policy = GaussianMLPPolicy(
         # name="policy",
@@ -25,14 +24,18 @@ def run_task(*_):
     )
 
     baseline = LinearFeatureBaseline(env_spec=env.spec)
-
+    # import tensorflow as tf
+    # import joblib
+    # with tf.Session() as sess:
+    #     data = joblib.load('data/local/trpo-sawyer-pick-place/trpo_sawyer_pick_place_2018_08_07_02_33_41_0001/itr_800.pkl')
+    
     algo = TRPO(
-        env=env,
-        policy=policy,
-        baseline=baseline,
+        env=env, #data['env'],
+        policy=policy, #data['policy'],
+        baseline=baseline, #data['baseline'],
         batch_size=100*500,
         max_path_length=150, #120,#130, #130,
-        n_itr=1000,
+        n_itr=1000, #1000
         discount=0.99,#0.99,
         step_size=0.01,#0.01,
         force_batch_sampler=True,
@@ -46,8 +49,9 @@ run_experiment_lite(
     n_parallel=6,
     # Only keep the snapshot parameters for the last iteration
     snapshot_mode="gap",
-    snapshot_gap=50,
+    snapshot_gap=25,
     exp_prefix='trpo_sawyer_pick_place',
+    # resume_from='data/local/trpo-sawyer-pick-place/trpo_sawyer_pick_place_2018_08_07_02_33_41_0001/itr_800.pkl',
     python_command='python3',
     # Specifies the seed for the experiment. If this is not provided, a random seed
     # will be used

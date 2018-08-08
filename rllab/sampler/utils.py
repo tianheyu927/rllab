@@ -24,7 +24,8 @@ def stack_tensor_list(tensor_list):
 
 def rollout(env, agent, max_path_length=np.inf, animated=False, speedup=1, noise=0.0,
             always_return_paths=False, env_reset=True, save_video=True, lstm=False, 
-            video_filename='sim_out.mp4', vision=False, is_push_2d=False, real=False):
+            video_filename='sim_out.mp4', vision=False, is_push_2d=False, real=False,
+            is_sawyer=False):
     observations = []
     actions = []
     rewards = []
@@ -44,26 +45,34 @@ def rollout(env, agent, max_path_length=np.inf, animated=False, speedup=1, noise
                 viewer = env.viewer
                 print('hi')
                 #import pdb; pdb.set_trace()
+        elif 'viewer' in dir(env.wrapped_env.wrapped_env):
+            viewer = env.wrapped_env.wrapped_env.viewer
+            if viewer == None:
+                env.render()
+                viewer = env.wrapped_env.wrapped_env.viewer
+                print('hi')
+                #import pdb; pdb.set_trace()
         else:
             viewer = env.wrapped_env.wrapped_env.get_viewer()
-        viewer.autoscale()
-        viewer.cam.trackbodyid=0
-        # viewer.cam.distance = 4.0
-        viewer.cam.distance = 4.0
-        rotation_angle = 0
-        cam_dist = 2 #4
-        # cam_pos = np.array([0, 0, 0, cam_dist, -90, rotation_angle])
-        if real:
-            angle = -60
-        else:
-            angle = -90
-        cam_pos = np.array([0.2, -0.4, 0, cam_dist, angle, rotation_angle])
-        for i in range(3):
-            viewer.cam.lookat[i] = cam_pos[i]
-        viewer.cam.distance = cam_pos[3]
-        viewer.cam.elevation = cam_pos[4]
-        viewer.cam.azimuth = cam_pos[5]
-        viewer.cam.trackbodyid=-1
+        if not is_sawyer:
+            viewer.autoscale()
+            viewer.cam.trackbodyid=0
+            # viewer.cam.distance = 4.0
+            viewer.cam.distance = 4.0
+            rotation_angle = 0
+            cam_dist = 2 #4
+            # cam_pos = np.array([0, 0, 0, cam_dist, -90, rotation_angle])
+            if real:
+                angle = -60
+            else:
+                angle = -90
+            cam_pos = np.array([0.2, -0.4, 0, cam_dist, angle, rotation_angle])
+            for i in range(3):
+                viewer.cam.lookat[i] = cam_pos[i]
+            viewer.cam.distance = cam_pos[3]
+            viewer.cam.elevation = cam_pos[4]
+            viewer.cam.azimuth = cam_pos[5]
+            viewer.cam.trackbodyid=-1
         env.render()
 
     if vision:
@@ -118,10 +127,15 @@ def rollout(env, agent, max_path_length=np.inf, animated=False, speedup=1, noise
             #time.sleep(timestep / speedup)
             if save_video:
                 from PIL import Image
-                image = viewer.get_image()
-                #image = env.wrapped_env.wrapped_env.get_viewer().get_image()
-                pil_image = Image.frombytes('RGB', (image[1], image[2]), image[0])
-                images.append(np.flipud(np.array(pil_image)))
+                if 'get_image' in dir(viewer):
+                    image = viewer.get_image()
+                    #image = env.wrapped_env.wrapped_env.get_viewer().get_image()
+                    pil_image = Image.frombytes('RGB', (image[1], image[2]), image[0])
+                    images.append(np.flipud(np.array(pil_image)))
+                else:
+                    image = env.wrapped_env.wrapped_env.get_image()
+                    images.append(image)
+
     if animated:
         if save_video and len(images) >= max_path_length:
             import moviepy.editor as mpy
