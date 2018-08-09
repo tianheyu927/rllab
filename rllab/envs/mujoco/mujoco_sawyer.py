@@ -215,14 +215,14 @@ def sawyer(obj_scale=None,
             vol, cog, inertia = distr_mesh_object.get_mass_properties()
             minx, maxx, miny, maxy, minz, maxz = find_mins_maxs(distr_mesh_object)
             max_length = max((maxx-minx),max((maxy-miny),(maxz-minz)))
-            distr_scale = distr_scale*0.0012 * (200.0 / max_length)
-            distr_density = distr_mass / (vol*distr_scale*distr_scale*distr_scale)
-            distr_scales.append(distr_scale)
+            scale = distr_scale*0.0012 * (200.0 / max_length)
+            distr_density = distr_mass / (vol*scale*scale*scale)
+            distr_scales.append(scale)
             distr_densities.append(distr_density)
-            distractor_poses[i][0] -= distr_scale*(minx+maxx)/2.0
-            distractor_poses[i][1] -= distr_scale*(miny+maxy)/2.0
-            # distractor_poses[i][2] = -0.324 - distr_scale*minz
-            distractor_poses[i][2] = 0.02 - distr_scale*minz
+            distractor_poses[i][0] -= scale*(minx+maxx)/2.0
+            distractor_poses[i][1] -= scale*(miny+maxy)/2.0
+            # distractor_poses[i][2] = -0.324 - scale*minz
+            distractor_poses[i][2] = 0.02 - scale*minz
 
     # MAKE TARGET OBJECT
     obj = worldbody.body(name="obj", pos=object_pos)
@@ -250,21 +250,21 @@ def sawyer(obj_scale=None,
             distractor.inertial(pos="0 0 0", mass=".1", diaginertia="100000 100000 100000")
     
     goal = worldbody.body(name="goal", pos=goal_pos)
-    dragonball1 = goal.body(name="dragonball1", pos="0.075 0 0.06")
+    dragonball1 = goal.body(name="dragonball1", pos="0.1 0 0.06")
     dragonball1.geom(rgba="1 0 1 1", type="sphere", size="0.005 0.005 0.005")
-    dragonball2 = goal.body(name="dragonball2", pos="-0.075 0 0.06")
+    dragonball2 = goal.body(name="dragonball2", pos="-0.1 0 0.06")
     dragonball2.geom(rgba="1 0 1 1", type="sphere", size="0.005 0.005 0.005")
-    goal.geom(name="goal_bottom", rgba="1 1 0 1", type="box", pos="0 0 0.005", size="0.075 0.075 0.001", contype="1", conaffinity="0", mass="1000")
-    goal.geom(name="goal_wall1", rgba="1 1 1 1", type="box", pos="0.0 0.075 0.034", size="0.075 0.001 0.03", contype="0", conaffinity="0", mass="1000")
-    goal.geom(name="goal_wall2", rgba="1 1 1 1", type="box", pos="0.0 -0.075 0.034", size="0.075 0.001 0.03", contype="0", conaffinity="0", mass="1000")
-    goal.geom(name="goal_wall3", rgba="1 1 1 1", type="box", pos="0.075 0 0.034", size="0.001 0.075 0.03", contype="0", conaffinity="0", mass="1000")
-    goal.geom(name="goal_wall4", rgba="1 1 1 1", type="box", pos="-0.076 0 0.034", size="0.001 0.075 0.03", contype="0", conaffinity="0", mass="1000")
-    goal.geom(rgba="1 1 1 1", type="capsule", fromto="0.073 0.073 0.0075 0.073 0.073 0.06", size="0.005", contype="0", conaffinity="0")
-    goal.geom(rgba="1 1 1 1", type="capsule", fromto="0.073 -0.073 0.0075 0.073 -0.073 0.06", size="0.005", contype="0", conaffinity="0")
-    goal.geom(rgba="1 1 1 1", type="capsule", fromto="-0.073 0.073 0.0075 -0.073 0.073 0.06", size="0.005", contype="0", conaffinity="0")
-    goal.geom(rgba="1 1 1 1", type="capsule", fromto="-0.073 -0.073 0.0075 -0.073 -0.073 0.06", size="0.005", contype="0", conaffinity="0")
-    goal.joint(name="goal_slidey", type="slide", pos="0 0 0", axis="0 1 0", range="-10.3213 10.3", damping="1.0")
-    goal.joint(name="goal_slidex", type="slide", pos="0 0 0", axis="1 0 0", range="-10.3213 10.3", damping="1.0")
+    goal.geom(name="goal_bottom", rgba="1 1 0 1", type="box", pos="0 0 0.005", size="0.1 0.1 0.001", contype="1", conaffinity="1", mass="1000")
+    goal.geom(name="goal_wall1", rgba="1 1 1 1", type="box", pos="0.0 0.1 0.034", size="0.1 0.001 0.03", contype="1", conaffinity="0", mass="1000")
+    goal.geom(name="goal_wall2", rgba="1 1 1 1", type="box", pos="0.0 -0.1 0.034", size="0.1 0.001 0.03", contype="1", conaffinity="0", mass="1000")
+    goal.geom(name="goal_wall3", rgba="1 1 1 1", type="box", pos="0.1 0 0.034", size="0.001 0.1 0.03", contype="1", conaffinity="0", mass="1000")
+    goal.geom(name="goal_wall4", rgba="1 1 1 1", type="box", pos="-0.101 0 0.034", size="0.001 0.1 0.03", contype="1", conaffinity="0", mass="1000")
+    goal.geom(rgba="1 1 1 1", type="capsule", fromto="0.098 0.098 0.0075 0.098 0.098 0.06", size="0.005", contype="1", conaffinity="0")
+    goal.geom(rgba="1 1 1 1", type="capsule", fromto="0.098 -0.098 0.0075 0.098 -0.098 0.06", size="0.005", contype="1", conaffinity="0")
+    goal.geom(rgba="1 1 1 1", type="capsule", fromto="-0.098 0.098 0.0075 -0.098 0.098 0.06", size="0.005", contype="1", conaffinity="0")
+    goal.geom(rgba="1 1 1 1", type="capsule", fromto="-0.098 -0.098 0.0075 -0.098 -0.098 0.06", size="0.005", contype="1", conaffinity="0")
+    # goal.joint(name="goal_slidey", type="slide", pos="0 0 0", axis="0 1 0", range="-10.3213 10.3", damping="1.0")
+    # goal.joint(name="goal_slidex", type="slide", pos="0 0 0", axis="1 0 0", range="-10.3213 10.3", damping="1.0")
 
     asset = mjcmodel.root.asset()
     asset.mesh(file=mesh_file_path, name="object_mesh", scale=[object_scale]*3) # figure out the proper scale
@@ -295,10 +295,14 @@ if __name__ == '__main__':
     #                 obj_texture=OBJ_TEXTURE_PATH+'banded_0002.png', distractor_textures=[OBJ_TEXTURE_PATH+'banded_0004.png'],
     #                 config_xml=CONFIG_XML, base_xml=BASE_XML)
     # model.save('/home/kevin/multiworld/multiworld/envs/assets/sawyer_xyz/sawyer_pick_and_place_fox_keysafe.xml')
-    model = sawyer(mesh_file=MESH_PATH+'vase1.stl', mesh_file_path=MESH_PATH+'vase1.stl', distractor_mesh_files=None,
+    model = sawyer(mesh_file=MESH_PATH+'vase1.stl', mesh_file_path=MESH_PATH+'vase1.stl',
+                    distractor_poses=[(0.2,0.5,0.02), (0.1,0.5,0.02), (0.,0.5,0.02), (-0.2,0.5,0.02)],
+                    distractor_mesh_files=[MESH_PATH+'King.stl', MESH_PATH+'1960_corvette.stl', MESH_PATH+'VOLCANO.stl',
+                                            MESH_PATH+'toy_boat_xyz_with_guns.stl'],
                     obj_texture=OBJ_TEXTURE_PATH+'banded_0002.png',
+                    distractor_textures=[OBJ_TEXTURE_PATH+'banded_0002.png' for _ in range(4)],
                     config_xml=CONFIG_XML, base_xml=BASE_XML)
-    model.save('/home/kevin/multiworld/multiworld/envs/assets/sawyer_xyz/sawyer_pick_and_place_vase1.xml')
+    model.save('/home/kevin/multiworld/multiworld/envs/assets/sawyer_xyz/sawyer_pick_and_place_vase1_distr.xml')
     import pdb; pdb.set_trace()
     # model = pusher(object_pos=(0, 0, -0.1), goal_pos=(-0.25, -0.65, -0.145), distractor_pos=(0, 0, -0.1),
     #                 object_color=(0.6464944792711915, 0.8851453486090576, 0.9337627557555863, 1.0), 
