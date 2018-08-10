@@ -9,17 +9,18 @@ from rllab.misc.instrument import stub, run_experiment_lite
 from multiworld.envs.mujoco.sawyer_xyz.sawyer_pick_and_place_mil import SawyerPickPlaceMILEnv
 from multiworld.core.flat_goal_env import FlatGoalEnv
 
-xml_file = '/home/kevin/multiworld/multiworld/envs/assets/sawyer_xyz/sawyer_pick_and_place_vase1.xml'
+# xml_file = '/home/kevin/multiworld/multiworld/envs/assets/sawyer_xyz/sawyer_pick_and_place_vase1.xml'
+xml_file = '/home/kevin/multiworld/multiworld/envs/assets/sawyer_xyz/sawyer_pick_and_place_vase1_distr.xml'
 
 def run_task(*_):
 
-    env = TfEnv(FlatGoalEnv(SawyerPickPlaceMILEnv(**{'xml_file': xml_file})))
+    env = TfEnv(FlatGoalEnv(SawyerPickPlaceMILEnv(**{'xml_file': xml_file, 'include_distractors': True, 'include_goal': True})))
     policy = GaussianMLPPolicy(
         # name="policy",
         name="policy",
         env_spec=env.spec,
         # The neural network policy should have two hidden layers, each with 32 hidden units.
-        hidden_sizes=(128, 128)
+        hidden_sizes=(128, 128, 128)
         # hidden_sizes=(32, 32)
     )
 
@@ -34,7 +35,7 @@ def run_task(*_):
         policy=policy, #data['policy'],
         baseline=baseline, #data['baseline'],
         batch_size=100*500,
-        max_path_length=150, #120,#130, #130,
+        max_path_length=200, #120,#130, #130,
         n_itr=1000, #1000
         discount=0.99,#0.99,
         step_size=0.01,#0.01,

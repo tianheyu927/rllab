@@ -73,7 +73,8 @@ def rollout(env, agent, max_path_length=np.inf, animated=False, speedup=1, noise
             viewer.cam.elevation = cam_pos[4]
             viewer.cam.azimuth = cam_pos[5]
             viewer.cam.trackbodyid=-1
-        env.render()
+        img = env.render(mode='rgb_array')
+        images.append(img)
 
     if vision:
         image_obses = []
@@ -122,7 +123,7 @@ def rollout(env, agent, max_path_length=np.inf, animated=False, speedup=1, noise
             image_obs = next_image_obs
             nonimage_obs = next_nonimage_obs
         if animated:
-            env.render()
+            img = env.render(mode='rgb_array')
             timestep = 0.05
             #time.sleep(timestep / speedup)
             if save_video:
@@ -133,10 +134,10 @@ def rollout(env, agent, max_path_length=np.inf, animated=False, speedup=1, noise
                     pil_image = Image.frombytes('RGB', (image[1], image[2]), image[0])
                     images.append(np.flipud(np.array(pil_image)))
                 else:
-                    image = env.wrapped_env.wrapped_env.get_image()
-                    images.append(image)
+                    images.append(img)
 
     if animated:
+        print(len(images))
         if save_video and len(images) >= max_path_length:
             import moviepy.editor as mpy
             clip = mpy.ImageSequenceClip(images, fps=20*speedup)
