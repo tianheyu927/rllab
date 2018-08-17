@@ -33,7 +33,7 @@ if __name__ == "__main__":
             path = rollout(env, policy, max_path_length=args.max_path_length,
                         #   animated=True, save_video=False, speedup=args.speedup,
                         #   is_sawyer=args.is_sawyer)
-                          animated=True, save_video=True, speedup=args.speedup,
+                          animated=True, save_video=False, speedup=args.speedup,
                           is_sawyer=args.is_sawyer)
             if not query_yes_no('Continue simulation?'):
                 break

@@ -522,6 +522,8 @@ def index():
     # exp_json = json.dumps(exp_data)
     if "AverageReturn" in plottable_keys:
         plot_key = "AverageReturn"
+    # if "epRew_mean" in plottable_keys:
+    #     plot_key = "epRew_mean"
     elif len(plottable_keys) > 0:
         plot_key = plottable_keys[0]
     else:
@@ -547,11 +549,13 @@ def reload_data():
     global exps_data
     global plottable_keys
     global distinct_params
+    import pdb; pdb.set_trace()
     exps_data = core.load_exps_data(args.data_paths,args.disable_variant)
     plottable_keys = list(
         set(flatten(list(exp.progress.keys()) for exp in exps_data)))
     plottable_keys = sorted([k for k in plottable_keys if k is not None])
     distinct_params = sorted(core.extract_distinct_params(exps_data))
+    import pdb; pdb.set_trace()
 
 
 if __name__ == "__main__":

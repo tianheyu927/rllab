@@ -5,17 +5,13 @@ import random
 import tempfile
 import os
 import numpy as np
+import glob
 import stl
 from stl import mesh
 
 from shutil import copyfile, copy2
 
-RLLAB_PATH = '/home/kevin/rllab/vendor/mujoco_models/pusher2d_xmls/'
-RLLAB_SHORTER_PATH = '/home/kevin/rllab/vendor/mujoco_models/pusher2d_shorter_xmls/'
-RLLAB_REAL_PATH = '/home/kevin/rllab/vendor/mujoco_models/pusher2d_real_xmls/'
-GYM_PATH = '/home/kevin/gym/gym/envs/mujoco/assets/pusher2d_xmls/'
-# RLLAB_MULTIGOAL_PATH = '/home/kevin/rllab/vendor/mujoco_models/pusher2d_multigoal_xmls/'
-RLLAB_MULTIGOAL_PATH = '/home/kevin/rllab/vendor/mujoco_models/pusher2d_multigoal_xmls_real/'
+RLLAB_SAWYER_PATH = '/home/kevin/multiworld/multiworld/envs/assets/sawyer_xyz/sawyer_pick_and_place/'
 MESH_PATH = '/home/kevin/gym/gym/envs/mujoco/assets/sim_push_xmls/mujoco_models/'
 OBJ_TEXTURE_PATH = '/home/kevin/gym/gym/envs/mujoco/assets/sim_push_xmls/textures/obj_textures/'
 CONFIG_XML = 'shared_config.xml'
@@ -156,7 +152,7 @@ def sawyer(obj_scale=None,
             distr_scale=None, 
             distr_mass=None,
             distr_damping=None, 
-            goal_pos=(0.0, 0.9, 0.02), 
+            goal_pos=(0.0, 1.0, 0.02), 
             distractor_poses=[(0.5,0.5,0.02)], 
             mesh_file=None,
             mesh_file_path=None, 
@@ -170,7 +166,10 @@ def sawyer(obj_scale=None,
     n_distractors = len(distractor_poses)
     
     if obj_scale is None:
+        sample_scale = True
         obj_scale = random.uniform(0.2, 0.3)
+    else:
+        sample_scale = False
     if obj_mass is None:
         obj_mass = random.uniform(0.1, 0.2)
     if obj_damping is None:
@@ -179,7 +178,7 @@ def sawyer(obj_scale=None,
 
     if distractor_mesh_files:
         if distr_scale is None:
-            distr_scale = random.uniform(0.2, 0.3)
+            distr_scale = [random.uniform(0.2, 0.3) for _ in range(n_distractors)]
         if distr_mass is None:
             distr_mass = random.uniform(0.1, 0.2)
         if distr_damping is None:
@@ -201,11 +200,21 @@ def sawyer(obj_scale=None,
         vol, cog, inertia = mesh_object.get_mass_properties()
         minx, maxx, miny, maxy, minz, maxz = find_mins_maxs(mesh_object)
         max_length = max((maxx-minx),max((maxy-miny),(maxz-minz)))
-        scale = obj_scale*0.0012 * (200.0 / max_length)
+        num_tries = 0
+        while num_tries <= 10:
+            scale = obj_scale*0.0012 * (200.0 / max_length)
+            if abs(scale*(minx+maxx)/2.0) <= 0.02 and abs(scale*(miny+maxy))/2.0 <= 0.02:
+                break
+            else:
+                assert sample_scale
+                obj_scale = random.uniform(0.1, 0.3)
+            num_tries += 1
+            if num_tries > 10:
+                return None, obj_scale, distr_scale
         object_density = obj_mass / (vol*scale*scale*scale)
+        # object_pos[2] = -0.324 - scale*minz
         object_pos[0] -= scale*(minx+maxx)/2.0
         object_pos[1] -= scale*(miny+maxy)/2.0
-        # object_pos[2] = -0.324 - scale*minz
         object_pos[2] = 0.02 - scale*minz
         object_scale = scale
     distr_densities, distr_scales = [], []
@@ -215,7 +224,17 @@ def sawyer(obj_scale=None,
             vol, cog, inertia = distr_mesh_object.get_mass_properties()
             minx, maxx, miny, maxy, minz, maxz = find_mins_maxs(distr_mesh_object)
             max_length = max((maxx-minx),max((maxy-miny),(maxz-minz)))
-            scale = distr_scale*0.0012 * (200.0 / max_length)
+            num_tries = 0
+            while num_tries <= 10:
+                scale = distr_scale[i]*0.0012 * (200.0 / max_length)
+                if abs(scale*(minx+maxx)/2.0) <= 0.02 and abs(scale*(miny+maxy))/2.0 <= 0.02:
+                    break
+                else:
+                    assert sample_scale
+                    distr_scale[i] = random.uniform(0.1, 0.3)
+                num_tries += 1
+            if num_tries > 10:
+                return None, obj_scale, distr_scale
             distr_density = distr_mass / (vol*scale*scale*scale)
             distr_scales.append(scale)
             distr_densities.append(distr_density)
@@ -254,15 +273,15 @@ def sawyer(obj_scale=None,
     dragonball1.geom(rgba="1 0 1 1", type="sphere", size="0.005 0.005 0.005")
     dragonball2 = goal.body(name="dragonball2", pos="-0.1 0 0.06")
     dragonball2.geom(rgba="1 0 1 1", type="sphere", size="0.005 0.005 0.005")
-    goal.geom(name="goal_bottom", rgba="1 1 0 1", type="box", pos="0 0 0.005", size="0.1 0.1 0.001", contype="1", conaffinity="1", mass="1000")
-    goal.geom(name="goal_wall1", rgba="1 1 1 1", type="box", pos="0.0 0.1 0.034", size="0.1 0.001 0.03", contype="1", conaffinity="0", mass="1000")
-    goal.geom(name="goal_wall2", rgba="1 1 1 1", type="box", pos="0.0 -0.1 0.034", size="0.1 0.001 0.03", contype="1", conaffinity="0", mass="1000")
-    goal.geom(name="goal_wall3", rgba="1 1 1 1", type="box", pos="0.1 0 0.034", size="0.001 0.1 0.03", contype="1", conaffinity="0", mass="1000")
-    goal.geom(name="goal_wall4", rgba="1 1 1 1", type="box", pos="-0.101 0 0.034", size="0.001 0.1 0.03", contype="1", conaffinity="0", mass="1000")
-    goal.geom(rgba="1 1 1 1", type="capsule", fromto="0.098 0.098 0.0075 0.098 0.098 0.06", size="0.005", contype="1", conaffinity="0")
-    goal.geom(rgba="1 1 1 1", type="capsule", fromto="0.098 -0.098 0.0075 0.098 -0.098 0.06", size="0.005", contype="1", conaffinity="0")
-    goal.geom(rgba="1 1 1 1", type="capsule", fromto="-0.098 0.098 0.0075 -0.098 0.098 0.06", size="0.005", contype="1", conaffinity="0")
-    goal.geom(rgba="1 1 1 1", type="capsule", fromto="-0.098 -0.098 0.0075 -0.098 -0.098 0.06", size="0.005", contype="1", conaffinity="0")
+    goal.geom(name="goal_bottom", rgba="1 1 0 1", type="box", pos="0 0 0.005", size="0.1 0.1 0.001", contype="1", conaffinity="1", solimp="0.99 0.99 0.01", solref="0.01 1", mass="1000")
+    goal.geom(name="goal_wall1", rgba="1 1 1 1", type="box", pos="0.0 0.1 0.034", size="0.1 0.001 0.03", contype="1", conaffinity="1", solimp="0.99 0.99 0.01", solref="0.01 1", mass="1000")
+    goal.geom(name="goal_wall2", rgba="1 1 1 1", type="box", pos="0.0 -0.1 0.034", size="0.1 0.001 0.03", contype="1", conaffinity="1", solimp="0.99 0.99 0.01", solref="0.01 1", mass="1000")
+    goal.geom(name="goal_wall3", rgba="1 1 1 1", type="box", pos="0.1 0 0.034", size="0.001 0.1 0.03", contype="1", conaffinity="1", solimp="0.99 0.99 0.01", solref="0.01 1", mass="1000")
+    goal.geom(name="goal_wall4", rgba="1 1 1 1", type="box", pos="-0.101 0 0.034", size="0.001 0.1 0.03", contype="1", conaffinity="1", solimp="0.99 0.99 0.01", solref="0.01 1", mass="1000")
+    goal.geom(rgba="1 1 1 1", type="capsule", fromto="0.098 0.098 0.0075 0.098 0.098 0.06", size="0.005", contype="1", conaffinity="1")
+    goal.geom(rgba="1 1 1 1", type="capsule", fromto="0.098 -0.098 0.0075 0.098 -0.098 0.06", size="0.005", contype="1", conaffinity="1")
+    goal.geom(rgba="1 1 1 1", type="capsule", fromto="-0.098 0.098 0.0075 -0.098 0.098 0.06", size="0.005", contype="1", conaffinity="1")
+    goal.geom(rgba="1 1 1 1", type="capsule", fromto="-0.098 -0.098 0.0075 -0.098 -0.098 0.06", size="0.005", contype="1", conaffinity="1")
     # goal.joint(name="goal_slidey", type="slide", pos="0 0 0", axis="0 1 0", range="-10.3213 10.3", damping="1.0")
     # goal.joint(name="goal_slidex", type="slide", pos="0 0 0", axis="1 0 0", range="-10.3213 10.3", damping="1.0")
 
@@ -282,7 +301,7 @@ def sawyer(obj_scale=None,
     actuator.position(ctrllimited="true", ctrlrange="-1 1", joint="r_close", kp="400",  user="1")
     actuator.position(ctrllimited="true", ctrlrange="-1 1", joint="l_close", kp="400",  user="1")
 
-    return mjcmodel
+    return mjcmodel, object_scale, distr_scale
 
 if __name__ == '__main__':
     import argparse
@@ -295,15 +314,15 @@ if __name__ == '__main__':
     #                 obj_texture=OBJ_TEXTURE_PATH+'banded_0002.png', distractor_textures=[OBJ_TEXTURE_PATH+'banded_0004.png'],
     #                 config_xml=CONFIG_XML, base_xml=BASE_XML)
     # model.save('/home/kevin/multiworld/multiworld/envs/assets/sawyer_xyz/sawyer_pick_and_place_fox_keysafe.xml')
-    model = sawyer(mesh_file=MESH_PATH+'vase1.stl', mesh_file_path=MESH_PATH+'vase1.stl',
+    model, _, _ = sawyer(mesh_file=MESH_PATH+'vase1.stl', mesh_file_path=MESH_PATH+'vase1.stl',
                     distractor_poses=[(0.2,0.5,0.02), (0.1,0.5,0.02), (0.,0.5,0.02), (-0.2,0.5,0.02)],
                     distractor_mesh_files=[MESH_PATH+'King.stl', MESH_PATH+'1960_corvette.stl', MESH_PATH+'VOLCANO.stl',
                                             MESH_PATH+'toy_boat_xyz_with_guns.stl'],
                     obj_texture=OBJ_TEXTURE_PATH+'banded_0002.png',
                     distractor_textures=[OBJ_TEXTURE_PATH+'banded_0002.png' for _ in range(4)],
                     config_xml=CONFIG_XML, base_xml=BASE_XML)
-    model.save('/home/kevin/multiworld/multiworld/envs/assets/sawyer_xyz/sawyer_pick_and_place_vase1_distr.xml')
-    import pdb; pdb.set_trace()
+    # model.save('/home/kevin/multiworld/multiworld/envs/assets/sawyer_xyz/sawyer_pick_and_place_vase1_distr.xml')
+    # import pdb; pdb.set_trace()
     # model = pusher(object_pos=(0, 0, -0.1), goal_pos=(-0.25, -0.65, -0.145), distractor_pos=(0, 0, -0.1),
     #                 object_color=(0.6464944792711915, 0.8851453486090576, 0.9337627557555863, 1.0), 
     #                 distractor_color=(0.9950538605327119, 0.2617251721988596, 0.06634001915093157, 1.0),
@@ -354,118 +373,60 @@ if __name__ == '__main__':
             copyfile(xml_file, GYM_PATH + '/gym/envs/mujoco/assets/pusher.xml')
     else:
         # TODO - could call code to autogenerate xml file here
+        mesh_files = glob.glob(MESH_PATH + '*stl')
+        texture_files = glob.glob(OBJ_TEXTURE_PATH + '*png')
         np.random.seed(3) #0
-        # goal_pos = (-0.4, -0.65, -0.145)
-        goal_pos = (-0.25, -0.65, -0.145)
-        train_colors = []
-        colors = []
-        # for i in range(500):
-        # for i in range(50):
-        # for i in range(100):
-        for i in range(550):
-            color = np.random.uniform(low=0, high=1, size=3)
-            while np.linalg.norm(color - np.array([1.,0.,0.])) < 0.5 or (i >= 470 and color in train_colors):
-                color = np.random.uniform(low=0, high=1, size=3)
-            distractor_color = np.random.uniform(low=0, high=1, size=3)
-            while (np.linalg.norm(distractor_color - np.array([1.,0.,0.])) < 0.5 and \
-                    np.linalg.norm(distractor_color - color) < 1.2) or \
-                    (i >= 470 and i < 500 and distractor_color in train_colors) or \
-                    (i >= 500 and distractor_color in colors):
-                distractor_color = np.random.uniform(low=0, high=1, size=3)
-            color = np.concatenate((color, [1.0]))
-            distractor_color = np.concatenate((distractor_color, [1.0]))
-            if i < 470:
-                train_colors.extend([color, distractor_color])
-                # continue
-            elif i >= 470 and i < 500:
-                colors.extend([color, distractor_color])
-                # continue
+        for i in range(330):
+            if i < 110:
+                num_objs = 5
+            elif i < 220:
+                num_objs = 4
+            else:
+                num_objs = 3
+            objs = np.random.choice(mesh_files, size=num_objs) #same obj but different textures
+            textures = np.random.choice(texture_files, size=num_objs, replace=False)
+            for j in range(num_objs):
+                if j == 0:
+                    while True:
+                        model, obj_scale, distr_scale = sawyer(mesh_file=objs[j], mesh_file_path=objs[j],
+                                        distractor_poses=[(0.2,0.5,0.02), (0.1,0.5,0.02), (0.,0.5,0.02), (-0.2,0.5,0.02)][:num_objs-1],
+                                        distractor_mesh_files=list(objs[textures!=textures[j]]),
+                                        obj_texture=textures[j],
+                                        distractor_textures=list(textures[textures!=textures[j]]),
+                                        obj_damping=1.0,
+                                        distr_damping=1.0,
+                                        config_xml=CONFIG_XML, base_xml=BASE_XML)
+                        if model is not None:
+                            break
+                        else:
+                            objs = np.random.choice(mesh_files, size=num_objs) #same obj but different textures
+                            textures = np.random.choice(texture_files, size=num_objs, replace=False)
+                else:
+                    true_obj_scale = distr_scale[j-1]
+                    true_distr_scale = [obj_scale] + distr_scale
+                    true_distr_scale = list(np.array(true_distr_scale)[textures!=textures[j]])
+                    model, _, _ = sawyer(mesh_file=objs[j], mesh_file_path=objs[j],
+                                    obj_scale=true_obj_scale,
+                                    distractor_poses=[(0.2,0.5,0.02), (0.1,0.5,0.02), (0.,0.5,0.02), (-0.2,0.5,0.02)][:num_objs-1],
+                                    distractor_mesh_files=list(objs[textures!=textures[j]]),
+                                    distr_scale=true_distr_scale,
+                                    obj_texture=textures[j],
+                                    distractor_textures=list(textures[textures!=textures[j]]),
+                                    obj_damping=1.0,
+                                    distr_damping=1.0,
+                                    config_xml=CONFIG_XML, base_xml=BASE_XML)                    
 
-            for j in range(24):
-            # for j in range(12):
-                if j >= 12:
-                    while True:
-                        # object_ = [np.random.uniform(low=-0.1, high=0.3),
-                        #             np.random.uniform(low=-0.9, high=-0.4)]
-                        # distractor_ = [np.random.uniform(low=-0.1, high=0.3),
-                        #             np.random.uniform(low=-0.9, high=-0.4)]
-                        # object_ = [np.random.uniform(low=-0.1, high=0.4),
-                        #             np.random.uniform(low=-1.0, high=-0.2)]
-                        # distractor_ = [np.random.uniform(low=-0.1, high=0.4),
-                        #             np.random.uniform(low=-1.0, high=-0.2)]
-                        # object_ = [np.random.uniform(low=0.0, high=0.4),
-                        #             np.random.uniform(low=-1.05, high=-0.3)]
-                        # distractor_ = [np.random.uniform(low=0.0, high=0.4),
-                        #             np.random.uniform(low=-1.05, high=-0.3)]
-                        object_ = [np.random.uniform(low=0.0, high=0.4),
-                                    np.random.uniform(low=-1.1, high=-0.8)]
-                        distractor_ = [np.random.uniform(low=0.0, high=0.4),
-                                        np.random.uniform(low=-1.1, high=-0.8)]
-                        if np.linalg.norm(np.array(object_)-np.array(goal_pos)[:-1]) > 0.3 and \
-                            np.linalg.norm(np.array(object_)[0]-np.array(distractor_)[0]) > 0.2 and \
-                            np.linalg.norm(np.array(distractor_)-np.array(goal_pos)[:-1]) > 0.3 and \
-                            np.linalg.norm(np.array(object_)[1]-np.array(distractor_)[1]) > 0.2 and \
-                            ((j < 6 and object_[1] < distractor_[1]) or \
-                            (j >= 6 and object_[1] >= distractor_[1])):
-                        # if np.linalg.norm(np.array(object_)-np.array(goal_pos)[:-1]) > 0.3 and \
-                        #     np.linalg.norm(np.array(object_)[-1]-np.array(distractor_)[-1]) > 0.45 and \
-                        #     np.linalg.norm(np.array(distractor_)-np.array(goal_pos)[:-1]) > 0.3:# and \
-                            # object_[1] > distractor_[1]:
-                            break
+                if i < 100:
+                    model_dir = RLLAB_SAWYER_PATH + '4distr_train_%d.xml' % (i*5 + j)
+                elif i < 110:
+                    model_dir = RLLAB_SAWYER_PATH + '4distr_test_%d.xml' % (i*5 + j)
+                elif i < 210:
+                    model_dir = RLLAB_SAWYER_PATH + '3distr_train_%d.xml' % (110*5 + (i-110)*4 + j)
+                elif i < 220:
+                    model_dir = RLLAB_SAWYER_PATH + '3distr_test_%d.xml' % (110*5 + (i-110)*4 + j)
+                elif i < 320:
+                    model_dir = RLLAB_SAWYER_PATH + '2distr_train_%d.xml' % (110*9 + (i-220)*3 + j)
                 else:
-                    while True:
-                        object_ = [np.random.uniform(low=0.0, high=0.3),
-                                    np.random.uniform(low=-1.0, high=-0.3)]
-                        distractor_ = [np.random.uniform(low=0.0, high=0.3),
-                                    np.random.uniform(low=-1.0, high=-0.3)]
-                        if np.linalg.norm(np.array(object_)-np.array(goal_pos)[:-1]) > 0.3 and \
-                            np.linalg.norm(np.array(object_)[-1]-np.array(distractor_)[-1]) > 0.55 and \
-                            np.linalg.norm(np.array(object_)[0]-np.array(distractor_)[0]) > 0.2 and \
-                            np.linalg.norm(np.array(distractor_)-np.array(goal_pos)[:-1]) > 0.3 and \
-                            ((j < 18 and object_[1] > distractor_[1] and object_[0] < distractor_[0]) or \
-                            (j >= 18 and object_[1] <= distractor_[1] and object_[0] > distractor_[0])):
-                            # (object_[1] > distractor_[1] and object_[0] < distractor_[0]):
-                        # if np.linalg.norm(np.array(object_)-np.array(goal_pos)[:-1]) > 0.3 and \
-                        #     np.linalg.norm(np.array(object_)[-1]-np.array(distractor_)[-1]) > 0.45 and \
-                        #     np.linalg.norm(np.array(distractor_)-np.array(goal_pos)[:-1]) > 0.3:# and \
-                            # object_[1] > distractor_[1]:
-                            break
-                # object_, distractor_ = [0., 0.], [0., 0.]
-                # while True:
-                #     object_ = [np.random.uniform(low=0.0, high=0.4),
-                #                 np.random.uniform(low=-1.1, high=-0.2)]
-                #     distractor_ = [np.random.uniform(low=0.0, high=0.4),
-                #                 np.random.uniform(low=-1.1, high=-0.2)]
-                #     if np.linalg.norm(np.array(object_)-np.array(goal_pos)[:-1]) > 0.3 and \
-                #         np.linalg.norm(np.array(object_)[-1]-np.array(distractor_)[-1]) > 0.5 and \
-                #         np.linalg.norm(np.array(object_)[0]-np.array(distractor_)[0]) > 0.2 and \
-                #         np.linalg.norm(np.array(distractor_)-np.array(goal_pos)[:-1]) > 0.3 and \
-                #         (object_[1] > distractor_[1] and object_[0] < distractor_[0]):
-                #         break
-                object_ = np.concatenate((object_, [-0.1]))
-                distractor_ = np.concatenate((distractor_, [-0.1]))
-                model1 = pusher(object_pos=object_, goal_pos=goal_pos, distractor_pos=distractor_, object_color=color, distractor_color=distractor_color,
-                                table_texture=TABLE_TEXTURE_PATH)
-                
-                model2 = pusher(object_pos=distractor_, goal_pos=goal_pos, distractor_pos=object_, object_color=distractor_color, distractor_color=color,
-                                table_texture=TABLE_TEXTURE_PATH)
-                # dir1 = RLLAB_PATH + 'train_%d.xml' % (24*2*i + j)
-                # dir2 = RLLAB_PATH + 'train_%d.xml' % (24*(2*i+1) + j)
-                # dir1 = RLLAB_PATH + 'test_%d.xml' % (24*2*i + j)
-                # dir2 = RLLAB_PATH + 'test_%d.xml' % (24*(2*i+1) + j)
-                # dir1 = RLLAB_MULTIGOAL_PATH + 'test_%d.xml' % (24*i + j)
-                # dir1 = RLLAB_SHORTER_PATH + 'train_%d.xml' % (24*2*i + j)
-                # dir2 = RLLAB_SHORTER_PATH + 'train_%d.xml' % (24*(2*i+1) + j)
-                # dir1 = RLLAB_SHORTER_PATH + 'test_%d.xml' % (24*2*(i-500) + j)
-                # dir2 = RLLAB_SHORTER_PATH + 'test_%d.xml' % (24*(2*(i-500)+1) + j)
-                # dir1 = RLLAB_MULTIGOAL_PATH + 'test_%d.xml' % (24*(i-500) + j)
-                if i < 500:
-                    dir1 = RLLAB_REAL_PATH + 'train_%d.xml' % (24*2*i + j)
-                    dir2 = RLLAB_REAL_PATH + 'train_%d.xml' % (24*(2*i+1) + j)
-                else:
-                    dir1 = RLLAB_REAL_PATH + 'test_%d.xml' % (24*2*i + j)
-                    dir2 = RLLAB_REAL_PATH + 'test_%d.xml' % (24*(2*i+1) + j)
-                print('Saving xml to %s' % dir1)
-                model1.save(dir1)
-                print('Saving xml to %s' % dir2)
-                model2.save(dir2)
+                    model_dir = RLLAB_SAWYER_PATH + '2distr_test_%d.xml' % (110*9 + (i-220)*3 + j)
+                print('Saving xml to %s' % model_dir)
+                model.save(model_dir)
